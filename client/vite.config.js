@@ -23,15 +23,15 @@ export default defineConfig({
     port: 5173, // Frontend runs on this port
     proxy: {
       // Proxy API requests to our backend server during development
-      // When frontend calls '/api/...', it forwards to 'http://localhost:5000/api/...'
+      // When frontend calls '/api/...', it forwards to 'http://localhost:5001/api/...'
       // This avoids CORS issues during development
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
       },
       // Proxy Socket.io connections to backend
       '/socket.io': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         ws: true, // Enable WebSocket proxying
       },
