@@ -16,6 +16,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Context providers
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 
 // Page components
 import LandingPage from './components/common/LandingPage';
@@ -32,8 +33,10 @@ function App() {
   return (
     // AuthProvider wraps the entire app to provide auth state everywhere
     <AuthProvider>
-      <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
-        <Routes>
+      {/* SocketProvider connects to the server for real-time features */}
+      <SocketProvider>
+        <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
+          <Routes>
           {/* ----------------------------------------------------------------- */}
           {/* PUBLIC ROUTES - Accessible to everyone                            */}
           {/* ----------------------------------------------------------------- */}
@@ -68,8 +71,9 @@ function App() {
 
           {/* 404 - Redirect unknown routes to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
+          </Routes>
+        </div>
+      </SocketProvider>
     </AuthProvider>
   );
 }

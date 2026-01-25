@@ -1,0 +1,198 @@
+// =============================================================================
+// SOCKET CONTEXT
+// =============================================================================
+// Manages the Socket.io connection for real-time features.
+//
+// Provides:
+// - Automatic connection when user is authenticated
+// - Automatic reconnection on disconnect
+// - Socket instance to all components via useSocket hook
+// - Event emitters and listeners
+// =============================================================================
+
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { io } from 'socket.io-client';
+import { useAuth } from './AuthContext';
+
+// Create the context
+const SocketContext = createContext(null);
+
+// =============================================================================
+// SOCKET PROVIDER
+// =============================================================================
+
+export function SocketProvider({ children }) {
+  const { user, token } = useAuth();
+  const [socket, setSocket] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+
+  // Use ref to track if we're intentionally disconnecting
+  const intentionalDisconnect = useRef(false);
+
+  // ---------------------------------------------------------------------------
+  // CONNECT SOCKET
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    // Only connect if we have a user and token
+    if (!user || !token) {
+      if (socket) {
+        intentionalDisconnect.current = true;
+        socket.disconnect();
+        setSocket(null);
+        setIsConnected(false);
+      }
+      return;
+    }
+
+    // Create socket connection
+    const newSocket = io({
+      auth: { token },
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+    });
+
+    // Connection events
+    newSocket.on('connect', () => {
+      console.log('[Socket] Connected:', newSocket.id);
+      setIsConnected(true);
+      intentionalDisconnect.current = false;
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('[Socket] Disconnected:', reason);
+      setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('[Socket] Connection error:', error.message);
+      setIsConnected(false);
+    });
+
+    // Online status events
+    newSocket.on('user:online', ({ userId }) => {
+      setOnlineUsers(prev => new Set([...prev, userId]));
+    });
+
+    newSocket.on('user:offline', ({ userId }) => {
+      setOnlineUsers(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    });
+
+    setSocket(newSocket);
+
+    // Cleanup on unmount or when user/token changes
+    return () => {
+      intentionalDisconnect.current = true;
+      newSocket.disconnect();
+    };
+  }, [user, token]);
+
+  // ---------------------------------------------------------------------------
+  // SEND MESSAGE
+  // ---------------------------------------------------------------------------
+
+  const sendMessage = useCallback((recipientId, content) => {
+    return new Promise((resolve, reject) => {
+      if (!socket || !isConnected) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socket.emit('message:send', { recipientId, content }, (response) => {
+        if (response.error) {
+          reject(new Error(response.error));
+        } else {
+          resolve(response.message);
+        }
+      });
+    });
+  }, [socket, isConnected]);
+
+  // ---------------------------------------------------------------------------
+  // TYPING INDICATORS
+  // ---------------------------------------------------------------------------
+
+  const startTyping = useCallback((recipientId) => {
+    if (socket && isConnected) {
+      socket.emit('typing:start', { recipientId });
+    }
+  }, [socket, isConnected]);
+
+  const stopTyping = useCallback((recipientId) => {
+    if (socket && isConnected) {
+      socket.emit('typing:stop', { recipientId });
+    }
+  }, [socket, isConnected]);
+
+  // ---------------------------------------------------------------------------
+  // MARK MESSAGES AS READ
+  // ---------------------------------------------------------------------------
+
+  const markAsRead = useCallback((userId) => {
+    if (socket && isConnected) {
+      socket.emit('messages:read', { userId });
+    }
+  }, [socket, isConnected]);
+
+  // ---------------------------------------------------------------------------
+  // CHECK IF USER IS ONLINE
+  // ---------------------------------------------------------------------------
+
+  const isUserOnline = useCallback((userId) => {
+    return onlineUsers.has(userId);
+  }, [onlineUsers]);
+
+  // ---------------------------------------------------------------------------
+  // SUBSCRIBE TO EVENTS
+  // ---------------------------------------------------------------------------
+
+  const subscribe = useCallback((event, handler) => {
+    if (!socket) return () => {};
+
+    socket.on(event, handler);
+    return () => socket.off(event, handler);
+  }, [socket]);
+
+  // ---------------------------------------------------------------------------
+  // CONTEXT VALUE
+  // ---------------------------------------------------------------------------
+
+  const value = {
+    socket,
+    isConnected,
+    onlineUsers,
+    sendMessage,
+    startTyping,
+    stopTyping,
+    markAsRead,
+    isUserOnline,
+    subscribe,
+  };
+
+  return (
+    <SocketContext.Provider value={value}>
+      {children}
+    </SocketContext.Provider>
+  );
+}
+
+// =============================================================================
+// USE SOCKET HOOK
+// =============================================================================
+
+export function useSocket() {
+  const context = useContext(SocketContext);
+  if (!context) {
+    throw new Error('useSocket must be used within a SocketProvider');
+  }
+  return context;
+}
+
+export default SocketContext;

@@ -38,6 +38,10 @@ import authRoutes from './routes/authRoutes.js';
 import inviteRoutes from './routes/inviteRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
+import messageRoutes from './routes/messageRoutes.js';
+
+// Socket handlers
+import { setupSocketHandlers } from './socket/socketHandlers.js';
 
 // Error handler
 import { errorHandler } from './middleware/errorHandler.js';
@@ -131,17 +135,8 @@ const io = new SocketServer(httpServer, {
 // Make io available to routes (we'll use this later for emitting events)
 app.set('io', io);
 
-// Socket.io connection handler - runs when a client connects
-io.on('connection', (socket) => {
-  console.log(`[Socket] Client connected: ${socket.id}`);
-
-  // Handle disconnection
-  socket.on('disconnect', (reason) => {
-    console.log(`[Socket] Client disconnected: ${socket.id} (${reason})`);
-  });
-
-  // TODO: Add authentication and event handlers in Phase 4
-});
+// Set up Socket.io handlers (authentication, messaging, etc.)
+setupSocketHandlers(io);
 
 // -----------------------------------------------------------------------------
 // API ROUTES
@@ -165,9 +160,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/api/messages', messageRoutes);
 // TODO: Add more routes in later phases
 // app.use('/api/groups', groupRoutes);
-// app.use('/api/messages', messageRoutes);
 
 // 404 handler - for routes that don't exist
 // Using {*splat} syntax for Express 5 / newer path-to-regexp compatibility

@@ -282,5 +282,31 @@ export const contactAPI = {
   check: (userId) => api.get(`/contacts/check/${userId}`),
 };
 
+// =============================================================================
+// MESSAGE API ENDPOINTS
+// =============================================================================
+// Message history and read status
+// =============================================================================
+
+export const messageAPI = {
+  /**
+   * Get DM conversation history
+   * @param {string} userId - Other user's ID
+   * @param {Object} params - { page, limit }
+   */
+  getDMMessages: (userId, params) => api.get(`/messages/dm/${userId}`, { params }),
+
+  /**
+   * Mark DM conversation as read
+   * @param {string} userId - Other user's ID
+   */
+  markDMAsRead: (userId) => api.post(`/messages/dm/${userId}/read`),
+
+  /**
+   * Get unread message count
+   */
+  getUnreadCount: () => api.get('/messages/unread'),
+};
+
 // Export the axios instance for custom requests
 export default api;
