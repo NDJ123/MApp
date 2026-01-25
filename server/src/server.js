@@ -171,7 +171,8 @@ app.use('/api/contacts', contactRoutes);
 // app.use('/api/messages', messageRoutes);
 
 // 404 handler - for routes that don't exist
-app.use('/api/*', (req, res) => {
+// Using {*splat} syntax for Express 5 / newer path-to-regexp compatibility
+app.use('/api/{*splat}', (req, res) => {
   res.status(404).json({
     status: 'error',
     message: `Route ${req.originalUrl} not found`,
