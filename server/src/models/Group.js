@@ -90,13 +90,21 @@ groupSchema.index({ name: 'text' });
 // =============================================================================
 
 // Check if a user is a member
+// Handles both populated (m.user is an object) and non-populated (m.user is ObjectId) cases
 groupSchema.methods.isMember = function(userId) {
-  return this.members.some(m => m.user.toString() === userId.toString());
+  return this.members.some(m => {
+    const memberId = m.user._id || m.user;
+    return memberId.toString() === userId.toString();
+  });
 };
 
 // Check if a user is an admin
+// Handles both populated (m.user is an object) and non-populated (m.user is ObjectId) cases
 groupSchema.methods.isAdmin = function(userId) {
-  const member = this.members.find(m => m.user.toString() === userId.toString());
+  const member = this.members.find(m => {
+    const memberId = m.user._id || m.user;
+    return memberId.toString() === userId.toString();
+  });
   return member && member.role === 'admin';
 };
 
@@ -109,14 +117,22 @@ groupSchema.methods.addMember = function(userId, role = 'member') {
 };
 
 // Remove a member from the group
+// Handles both populated (m.user is an object) and non-populated (m.user is ObjectId) cases
 groupSchema.methods.removeMember = function(userId) {
-  this.members = this.members.filter(m => m.user.toString() !== userId.toString());
+  this.members = this.members.filter(m => {
+    const memberId = m.user._id || m.user;
+    return memberId.toString() !== userId.toString();
+  });
   return this.save();
 };
 
 // Promote a member to admin
+// Handles both populated (m.user is an object) and non-populated (m.user is ObjectId) cases
 groupSchema.methods.promoteToAdmin = function(userId) {
-  const member = this.members.find(m => m.user.toString() === userId.toString());
+  const member = this.members.find(m => {
+    const memberId = m.user._id || m.user;
+    return memberId.toString() === userId.toString();
+  });
   if (member) {
     member.role = 'admin';
   }
