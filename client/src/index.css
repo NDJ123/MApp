@@ -1,0 +1,140 @@
+/* =============================================================================
+   MAIN STYLESHEET - MApp Chat Application
+   =============================================================================
+   This is the entry point for all CSS in our app. We use Tailwind CSS, which
+   provides utility classes like 'bg-blue-500', 'p-4', 'flex', etc.
+
+   Tailwind works by:
+   1. @import "tailwindcss" - loads the Tailwind framework
+   2. We use utility classes directly in our JSX/HTML
+   3. Tailwind only includes the CSS for classes we actually use (tree-shaking)
+   ============================================================================= */
+
+/* Import Tailwind CSS - this single import gives us access to all utilities */
+@import "tailwindcss";
+
+/* =============================================================================
+   CUSTOM CSS VARIABLES (Design Tokens)
+   =============================================================================
+   These variables define our color palette and can be used with Tailwind.
+   We define both light and dark mode colors here.
+
+   CSS variables (--name) can be referenced anywhere as var(--name)
+   ============================================================================= */
+
+:root {
+  /* Light mode colors (default) */
+  --color-primary: #6366f1;        /* Indigo - main brand color */
+  --color-primary-hover: #4f46e5;  /* Darker indigo for hover states */
+  --color-background: #ffffff;      /* Page background */
+  --color-surface: #f9fafb;         /* Cards, sidebars */
+  --color-surface-hover: #f3f4f6;   /* Hover state for surfaces */
+  --color-border: #e5e7eb;          /* Borders and dividers */
+  --color-text-primary: #111827;    /* Main text */
+  --color-text-secondary: #6b7280;  /* Muted text */
+  --color-text-tertiary: #9ca3af;   /* Even more muted */
+
+  /* Status colors */
+  --color-success: #10b981;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+
+  /* Sizing */
+  --sidebar-width: 280px;
+}
+
+/* Dark mode colors - activated when user prefers dark mode or toggles theme */
+.dark {
+  --color-primary: #818cf8;         /* Lighter indigo for dark backgrounds */
+  --color-primary-hover: #a5b4fc;
+  --color-background: #0f172a;       /* Very dark blue-gray */
+  --color-surface: #1e293b;          /* Slightly lighter */
+  --color-surface-hover: #334155;
+  --color-border: #334155;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-tertiary: #64748b;
+}
+
+/* =============================================================================
+   BASE STYLES
+   =============================================================================
+   Reset and base styles that apply to all elements
+   ============================================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /* Smooth scrolling for anchor links */
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+               Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  /* Prevent horizontal scroll */
+  overflow-x: hidden;
+  /* Smooth transitions when theme changes */
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Ensure the app takes full viewport height */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =============================================================================
+   SCROLLBAR STYLES
+   =============================================================================
+   Custom scrollbars that match our theme (works in Chrome, Edge, Safari)
+   ============================================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-tertiary);
+}
+
+/* =============================================================================
+   UTILITY CLASSES
+   =============================================================================
+   Custom utilities that Tailwind doesn't provide out of the box
+   ============================================================================= */
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Text truncation with ellipsis */
+.truncate-2-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
