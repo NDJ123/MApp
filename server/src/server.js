@@ -36,6 +36,8 @@ import { Server as SocketServer } from 'socket.io';
 // Routes
 import authRoutes from './routes/authRoutes.js';
 import inviteRoutes from './routes/inviteRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 
 // Error handler
 import { errorHandler } from './middleware/errorHandler.js';
@@ -162,9 +164,9 @@ app.get('/api/health', (req, res) => {
 // Register API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/invites', inviteRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/contacts', contactRoutes);
 // TODO: Add more routes in later phases
-// app.use('/api/users', userRoutes);
-// app.use('/api/contacts', contactRoutes);
 // app.use('/api/groups', groupRoutes);
 // app.use('/api/messages', messageRoutes);
 

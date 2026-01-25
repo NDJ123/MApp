@@ -219,5 +219,68 @@ export const inviteAPI = {
   getStats: () => api.get('/invites/stats'),
 };
 
+// =============================================================================
+// USER API ENDPOINTS
+// =============================================================================
+// User directory and profile operations
+// =============================================================================
+
+export const userAPI = {
+  /**
+   * Get all users (for directory)
+   * @param {Object} params - { page, limit, search }
+   */
+  getAll: (params) => api.get('/users', { params }),
+
+  /**
+   * Get a single user by ID
+   * @param {string} id - User ID
+   */
+  getById: (id) => api.get(`/users/${id}`),
+
+  /**
+   * Search users (for autocomplete)
+   * @param {string} q - Search query
+   */
+  search: (q) => api.get('/users/search', { params: { q } }),
+
+  /**
+   * Update current user's profile
+   * @param {Object} data - { displayName, avatar }
+   */
+  updateProfile: (data) => api.put('/users/profile', data),
+};
+
+// =============================================================================
+// CONTACT API ENDPOINTS
+// =============================================================================
+// Contact list management
+// =============================================================================
+
+export const contactAPI = {
+  /**
+   * Get current user's contact list
+   */
+  getAll: () => api.get('/contacts'),
+
+  /**
+   * Add a user to contacts
+   * @param {string} userId - User ID to add
+   */
+  add: (userId) => api.post(`/contacts/${userId}`),
+
+  /**
+   * Remove a user from contacts
+   * @param {string} userId - User ID to remove
+   */
+  remove: (userId) => api.delete(`/contacts/${userId}`),
+
+  /**
+   * Check if a user is in contacts
+   * @param {string} userId - User ID to check
+   */
+  check: (userId) => api.get(`/contacts/check/${userId}`),
+};
+
 // Export the axios instance for custom requests
 export default api;
