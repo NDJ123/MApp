@@ -24,7 +24,7 @@ import { createServer } from 'http';  // Required to attach Socket.io to Express
 import express from 'express';
 import cors from 'cors';              // Cross-Origin Resource Sharing
 import helmet from 'helmet';          // Security headers
-import mongoSanitize from 'express-mongo-sanitize';  // Prevent NoSQL injection
+// Note: express-mongo-sanitize removed - not compatible with Express 5
 import rateLimit from 'express-rate-limit';          // Prevent abuse
 
 // Database
@@ -93,9 +93,8 @@ app.use(express.json({ limit: '10kb' }));  // Limit body size for security
 // Parse URL-encoded data (form submissions)
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// Security: Sanitize data to prevent NoSQL injection attacks
-// Removes any keys that start with $ or contain . (MongoDB operators)
-app.use(mongoSanitize());
+// Note: NoSQL injection sanitization removed for Express 5 compatibility
+// For production, consider using mongoose schema validation instead
 
 // Security: Rate limiting to prevent brute force attacks
 // Limits each IP to 100 requests per 15 minutes
