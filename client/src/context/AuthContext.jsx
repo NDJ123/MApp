@@ -197,9 +197,13 @@ export function AuthProvider({ children }) {
   // This object is what components receive when they use useAuth()
   // ---------------------------------------------------------------------------
 
+  // Get token from localStorage for socket connection
+  const token = localStorage.getItem('token');
+
   const value = {
     // State
     user,
+    token,
     isAuthenticated,
     isLoading,
     error,
