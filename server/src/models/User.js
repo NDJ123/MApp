@@ -163,29 +163,23 @@ userSchema.index({ contacts: 1 });
 // NEVER store plain-text passwords - always hash them!
 // =============================================================================
 
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
   // 'this' refers to the document being saved
 
   // Only hash the password if it's new or has been modified
   // This prevents re-hashing an already hashed password
   if (!this.isModified('password')) {
-    return next();
+    return;
   }
 
-  try {
-    // Generate a "salt" - random data added to the password before hashing
-    // The number (12) is the "cost factor" - higher = more secure but slower
-    // 12 is a good balance between security and performance
-    const salt = await bcrypt.genSalt(12);
+  // Generate a "salt" - random data added to the password before hashing
+  // The number (12) is the "cost factor" - higher = more secure but slower
+  // 12 is a good balance between security and performance
+  const salt = await bcrypt.genSalt(12);
 
-    // Hash the password with the salt
-    // The resulting hash includes the salt, so we don't need to store it separately
-    this.password = await bcrypt.hash(this.password, salt);
-
-    next();
-  } catch (error) {
-    next(error);
-  }
+  // Hash the password with the salt
+  // The resulting hash includes the salt, so we don't need to store it separately
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // =============================================================================
