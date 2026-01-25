@@ -33,8 +33,8 @@ const authenticateSocket = async (socket, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from database
-    const user = await User.findById(decoded.id).select('-password');
+    // Get user from database (JWT uses userId, not id)
+    const user = await User.findById(decoded.userId).select('-password');
     if (!user) {
       return next(new Error('User not found'));
     }

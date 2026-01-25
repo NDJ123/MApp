@@ -22,7 +22,7 @@ const SocketContext = createContext(null);
 // =============================================================================
 
 export function SocketProvider({ children }) {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
@@ -35,6 +35,9 @@ export function SocketProvider({ children }) {
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
+    // Get token directly from localStorage (more reliable than context)
+    const token = localStorage.getItem('token');
+
     // Only connect if we have a user and token
     if (!user || !token) {
       if (socket) {
@@ -92,7 +95,7 @@ export function SocketProvider({ children }) {
       intentionalDisconnect.current = true;
       newSocket.disconnect();
     };
-  }, [user, token]);
+  }, [user]);
 
   // ---------------------------------------------------------------------------
   // SEND MESSAGE
