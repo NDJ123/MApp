@@ -13,6 +13,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { SOCKET_URL } from '../config';
 
 // Create the context
 const SocketContext = createContext(null);
@@ -50,7 +51,9 @@ export function SocketProvider({ children }) {
     }
 
     // Create socket connection
-    const newSocket = io({
+    // In production, SOCKET_URL points to the backend server
+    // In development, empty string means "connect to current host" (proxied by Vite)
+    const newSocket = io(SOCKET_URL || undefined, {
       auth: { token },
       reconnection: true,
       reconnectionAttempts: 5,

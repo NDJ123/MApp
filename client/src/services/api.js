@@ -17,6 +17,7 @@
 // =============================================================================
 
 import axios from 'axios';
+import { API_URL } from '../config';
 
 // =============================================================================
 // CREATE AXIOS INSTANCE
@@ -26,9 +27,10 @@ import axios from 'axios';
 // =============================================================================
 
 const api = axios.create({
-  // Base URL for all requests - from environment variable
-  // In development, Vite proxies /api to the backend (see vite.config.js)
-  baseURL: '/api',
+  // Base URL for all requests
+  // In development: Vite proxies /api to localhost:5001 (see vite.config.js)
+  // In production: VITE_API_URL points to the backend server
+  baseURL: API_URL ? `${API_URL}/api` : '/api',
 
   // Request timeout (10 seconds)
   timeout: 10000,
