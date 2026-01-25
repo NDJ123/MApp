@@ -13,9 +13,8 @@
 // -----------------------------------------------------------------------------
 
 // dotenv loads environment variables from .env file into process.env
-// MUST be first import so all other files can access env vars
-import dotenv from 'dotenv';
-dotenv.config();
+// Using 'dotenv/config' ensures it runs before other imports in ES modules
+import 'dotenv/config';
 
 // Node.js built-in modules
 import { createServer } from 'http';  // Required to attach Socket.io to Express
