@@ -33,6 +33,13 @@ import mongoose from 'mongoose';
 // Socket.io for real-time features
 import { Server as SocketServer } from 'socket.io';
 
+// Routes
+import authRoutes from './routes/authRoutes.js';
+import inviteRoutes from './routes/inviteRoutes.js';
+
+// Error handler
+import { errorHandler } from './middleware/errorHandler.js';
+
 // -----------------------------------------------------------------------------
 // CONFIGURATION
 // -----------------------------------------------------------------------------
@@ -152,10 +159,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// TODO: Add route imports and registrations in Phase 2
-// app.use('/api/auth', authRoutes);
+// Register API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/invites', inviteRoutes);
+// TODO: Add more routes in later phases
 // app.use('/api/users', userRoutes);
-// etc.
+// app.use('/api/contacts', contactRoutes);
+// app.use('/api/groups', groupRoutes);
+// app.use('/api/messages', messageRoutes);
 
 // 404 handler - for routes that don't exist
 app.use('/api/*', (req, res) => {
@@ -170,24 +181,10 @@ app.use('/api/*', (req, res) => {
 // -----------------------------------------------------------------------------
 // This catches any errors thrown in our routes/middleware
 // Must be the LAST middleware added
+// Uses our custom error handler from middleware/errorHandler.js
 // -----------------------------------------------------------------------------
 
-app.use((err, req, res, next) => {
-  // Log error for debugging (in development)
-  console.error('[Error]', err);
-
-  // Determine status code
-  const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal server error';
-
-  // Send error response
-  res.status(statusCode).json({
-    status: 'error',
-    message: NODE_ENV === 'development' ? message : 'Something went wrong',
-    // Only include stack trace in development
-    ...(NODE_ENV === 'development' && { stack: err.stack }),
-  });
-});
+app.use(errorHandler);
 
 // -----------------------------------------------------------------------------
 // DATABASE CONNECTION

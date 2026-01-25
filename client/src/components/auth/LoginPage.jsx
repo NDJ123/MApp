@@ -12,66 +12,77 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 function LoginPage() {
   // ---------------------------------------------------------------------------
+  // HOOKS
+  // ---------------------------------------------------------------------------
+  // useNavigate - programmatic navigation
+  // useLocation - access location state (for redirect after login)
+  // useAuth - authentication methods and state
+  // ---------------------------------------------------------------------------
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, isLoading: authLoading, error: authError, clearError } = useAuth();
+
+  // Get the page user was trying to access (if any)
+  const from = location.state?.from?.pathname || '/chat';
+
+  // ---------------------------------------------------------------------------
   // STATE
   // ---------------------------------------------------------------------------
-  // Form data - controlled inputs
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  // UI state
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
+
+  // Combine auth error and local validation error
+  const error = localError || authError;
+  const isLoading = authLoading;
 
   // ---------------------------------------------------------------------------
   // HANDLERS
   // ---------------------------------------------------------------------------
 
-  // Update form data when user types
-  // We use a single handler for all inputs by using the input's "name" attribute
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
-      ...prev,      // Keep existing values
-      [name]: value // Update the changed field
+      ...prev,
+      [name]: value,
     }));
-    // Clear error when user starts typing
-    if (error) setError('');
+    // Clear errors when user starts typing
+    if (localError) setLocalError('');
+    if (authError) clearError();
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
-    // Prevent default form submission (page reload)
     e.preventDefault();
 
     // Basic validation
     if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+      setLocalError('Please fill in all fields');
       return;
     }
 
-    setIsLoading(true);
-    setError('');
+    setLocalError('');
 
-    try {
-      // TODO: Replace with actual API call in Phase 2
-      console.log('Login attempt:', formData.email);
+    // Call login from AuthContext
+    const result = await login({
+      email: formData.email,
+      password: formData.password,
+    });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // TODO: On success, store token and redirect to /chat
-      alert('Login functionality will be implemented in Phase 2!');
-    } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+    if (result.success) {
+      // Redirect to the page they were trying to access, or /chat
+      navigate(from, { replace: true });
     }
+    // If login fails, authError will be set by AuthContext
   };
 
   // ---------------------------------------------------------------------------
@@ -80,7 +91,6 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
-      {/* Card container */}
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -104,10 +114,7 @@ function LoginPage() {
 
           {/* Email field */}
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium mb-2"
-            >
+            <label htmlFor="email" className="block text-sm font-medium mb-2">
               Email
             </label>
             <input
@@ -118,17 +125,15 @@ function LoginPage() {
               onChange={handleChange}
               placeholder="you@example.com"
               autoComplete="email"
-              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow"
+              disabled={isLoading}
+              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50"
             />
           </div>
 
           {/* Password field */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium"
-              >
+              <label htmlFor="password" className="block text-sm font-medium">
                 Password
               </label>
               <Link
@@ -146,7 +151,8 @@ function LoginPage() {
               onChange={handleChange}
               placeholder="••••••••"
               autoComplete="current-password"
-              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow"
+              disabled={isLoading}
+              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50"
             />
           </div>
 
@@ -158,7 +164,6 @@ function LoginPage() {
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                {/* Simple spinner */}
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                   <circle
                     className="opacity-25"

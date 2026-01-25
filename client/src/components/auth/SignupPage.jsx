@@ -5,19 +5,26 @@
 // 1. A valid invite code (invite-only system)
 // 2. Username, email, password, and display name
 //
-// This is more complex than login because we have more fields to validate.
-// We'll add proper validation in Phase 2 when we connect to the backend.
+// This form validates input before sending to the server.
 // =============================================================================
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { inviteAPI } from '../../services/api';
 
 function SignupPage() {
+  // ---------------------------------------------------------------------------
+  // HOOKS
+  // ---------------------------------------------------------------------------
+
+  const navigate = useNavigate();
+  const { signup, isLoading: authLoading, error: authError, clearError } = useAuth();
+
   // ---------------------------------------------------------------------------
   // STATE
   // ---------------------------------------------------------------------------
 
-  // Form data
   const [formData, setFormData] = useState({
     inviteCode: '',
     username: '',
@@ -27,9 +34,13 @@ function SignupPage() {
     confirmPassword: '',
   });
 
-  // UI state
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [inviteValid, setInviteValid] = useState(null); // null = not checked, true/false = result
+  const [checkingInvite, setCheckingInvite] = useState(false);
+
+  const error = localError || authError;
+  const isLoading = authLoading;
 
   // ---------------------------------------------------------------------------
   // HANDLERS
@@ -41,51 +52,101 @@ function SignupPage() {
       ...prev,
       [name]: value,
     }));
-    if (error) setError('');
+
+    // Clear errors when user starts typing
+    if (localError) setLocalError('');
+    if (authError) clearError();
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+
+    // Reset invite validation when code changes
+    if (name === 'inviteCode') {
+      setInviteValid(null);
+    }
+  };
+
+  // Validate invite code when user leaves the field
+  const handleInviteBlur = async () => {
+    const code = formData.inviteCode.trim();
+    if (!code || code.length < 9) {
+      setInviteValid(null);
+      return;
+    }
+
+    setCheckingInvite(true);
+    try {
+      await inviteAPI.validate(code);
+      setInviteValid(true);
+    } catch (err) {
+      setInviteValid(false);
+      setFieldErrors((prev) => ({
+        ...prev,
+        inviteCode: err.message || 'Invalid invite code',
+      }));
+    } finally {
+      setCheckingInvite(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic validation
     const { inviteCode, username, email, displayName, password, confirmPassword } = formData;
 
-    if (!inviteCode || !username || !email || !displayName || !password || !confirmPassword) {
-      setError('Please fill in all fields');
+    // Client-side validation
+    const errors = {};
+
+    if (!inviteCode) errors.inviteCode = 'Invite code is required';
+    if (!username) errors.username = 'Username is required';
+    else if (username.length < 3) errors.username = 'Username must be at least 3 characters';
+    else if (username.length > 30) errors.username = 'Username cannot exceed 30 characters';
+    else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      errors.username = 'Username can only contain letters, numbers, and underscores';
+    }
+
+    if (!email) errors.email = 'Email is required';
+    else if (!/^\S+@\S+\.\S+$/.test(email)) errors.email = 'Invalid email format';
+
+    if (!displayName) errors.displayName = 'Display name is required';
+
+    if (!password) errors.password = 'Password is required';
+    else if (password.length < 8) errors.password = 'Password must be at least 8 characters';
+
+    if (!confirmPassword) errors.confirmPassword = 'Please confirm your password';
+    else if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setLocalError('Please fix the errors below');
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    setLocalError('');
+    setFieldErrors({});
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
+    // Call signup from AuthContext
+    const result = await signup({
+      inviteCode,
+      username,
+      email,
+      displayName,
+      password,
+      confirmPassword,
+    });
 
-    if (username.length < 3 || username.length > 30) {
-      setError('Username must be 3-30 characters');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      // TODO: Replace with actual API call in Phase 2
-      console.log('Signup attempt:', { username, email, displayName });
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // TODO: On success, store token and redirect to /chat
-      alert('Signup functionality will be implemented in Phase 2!');
-    } catch (err) {
-      setError(err.message || 'Signup failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+    if (result.success) {
+      // Redirect to chat after successful signup
+      navigate('/chat', { replace: true });
+    } else {
+      // Handle field-specific errors from server
+      if (result.errors) {
+        const serverErrors = {};
+        result.errors.forEach((err) => {
+          serverErrors[err.field] = err.message;
+        });
+        setFieldErrors(serverErrors);
+      }
     }
   };
 
@@ -109,8 +170,8 @@ function SignupPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Error message */}
-          {error && (
+          {/* General error message */}
+          {error && !Object.keys(fieldErrors).length && (
             <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
               {error}
             </div>
@@ -121,15 +182,47 @@ function SignupPage() {
             <label htmlFor="inviteCode" className="block text-sm font-medium mb-2">
               Invite Code
             </label>
-            <input
-              type="text"
-              id="inviteCode"
-              name="inviteCode"
-              value={formData.inviteCode}
-              onChange={handleChange}
-              placeholder="Enter your invite code"
-              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                id="inviteCode"
+                name="inviteCode"
+                value={formData.inviteCode}
+                onChange={handleChange}
+                onBlur={handleInviteBlur}
+                placeholder="XXXX-XXXX"
+                disabled={isLoading}
+                className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
+                  fieldErrors.inviteCode
+                    ? 'border-red-500'
+                    : inviteValid === true
+                    ? 'border-green-500'
+                    : 'border-[var(--color-border)]'
+                }`}
+              />
+              {/* Status indicator */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                {checkingInvite && (
+                  <svg className="animate-spin h-5 w-5 text-[var(--color-text-tertiary)]" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+                {!checkingInvite && inviteValid === true && (
+                  <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                {!checkingInvite && inviteValid === false && (
+                  <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </div>
+            </div>
+            {fieldErrors.inviteCode && (
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.inviteCode}</p>
+            )}
           </div>
 
           {/* Username field */}
@@ -145,11 +238,18 @@ function SignupPage() {
               onChange={handleChange}
               placeholder="johndoe"
               autoComplete="username"
-              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              disabled={isLoading}
+              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
+                fieldErrors.username ? 'border-red-500' : 'border-[var(--color-border)]'
+              }`}
             />
-            <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-              3-30 characters, letters and numbers only
-            </p>
+            {fieldErrors.username ? (
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.username}</p>
+            ) : (
+              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                3-30 characters, letters, numbers, and underscores only
+              </p>
+            )}
           </div>
 
           {/* Email field */}
@@ -165,8 +265,14 @@ function SignupPage() {
               onChange={handleChange}
               placeholder="you@example.com"
               autoComplete="email"
-              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              disabled={isLoading}
+              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
+                fieldErrors.email ? 'border-red-500' : 'border-[var(--color-border)]'
+              }`}
             />
+            {fieldErrors.email && (
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>
+            )}
           </div>
 
           {/* Display name field */}
@@ -182,11 +288,18 @@ function SignupPage() {
               onChange={handleChange}
               placeholder="John Doe"
               autoComplete="name"
-              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              disabled={isLoading}
+              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
+                fieldErrors.displayName ? 'border-red-500' : 'border-[var(--color-border)]'
+              }`}
             />
-            <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-              This is how others will see you
-            </p>
+            {fieldErrors.displayName ? (
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.displayName}</p>
+            ) : (
+              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                This is how others will see you
+              </p>
+            )}
           </div>
 
           {/* Password field */}
@@ -202,11 +315,16 @@ function SignupPage() {
               onChange={handleChange}
               placeholder="••••••••"
               autoComplete="new-password"
-              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              disabled={isLoading}
+              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
+                fieldErrors.password ? 'border-red-500' : 'border-[var(--color-border)]'
+              }`}
             />
-            <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-              Minimum 8 characters
-            </p>
+            {fieldErrors.password ? (
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
+            ) : (
+              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">Minimum 8 characters</p>
+            )}
           </div>
 
           {/* Confirm password field */}
@@ -222,33 +340,27 @@ function SignupPage() {
               onChange={handleChange}
               placeholder="••••••••"
               autoComplete="new-password"
-              className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              disabled={isLoading}
+              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
+                fieldErrors.confirmPassword ? 'border-red-500' : 'border-[var(--color-border)]'
+              }`}
             />
+            {fieldErrors.confirmPassword && (
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>
+            )}
           </div>
 
           {/* Submit button */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || inviteValid === false}
             className="w-full py-3 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:bg-[var(--color-primary-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
                 Creating account...
               </span>
@@ -261,10 +373,7 @@ function SignupPage() {
         {/* Login link */}
         <p className="mt-8 text-center text-[var(--color-text-secondary)]">
           Already have an account?{' '}
-          <Link
-            to="/login"
-            className="text-[var(--color-primary)] hover:underline font-medium"
-          >
+          <Link to="/login" className="text-[var(--color-primary)] hover:underline font-medium">
             Sign in
           </Link>
         </p>
