@@ -303,9 +303,68 @@ export const messageAPI = {
   markDMAsRead: (userId) => api.post(`/messages/dm/${userId}/read`),
 
   /**
+   * Get group conversation history
+   * @param {string} groupId - Group ID
+   * @param {Object} params - { page, limit }
+   */
+  getGroupMessages: (groupId, params) => api.get(`/messages/group/${groupId}`, { params }),
+
+  /**
    * Get unread message count
    */
   getUnreadCount: () => api.get('/messages/unread'),
+};
+
+// =============================================================================
+// GROUP API ENDPOINTS
+// =============================================================================
+// Group chat management
+// =============================================================================
+
+export const groupAPI = {
+  /**
+   * Create a new group
+   * @param {Object} data - { name, description, memberIds }
+   */
+  create: (data) => api.post('/groups', data),
+
+  /**
+   * Get current user's groups
+   */
+  getAll: () => api.get('/groups'),
+
+  /**
+   * Get a single group by ID
+   * @param {string} groupId - Group ID
+   */
+  getById: (groupId) => api.get(`/groups/${groupId}`),
+
+  /**
+   * Update group settings
+   * @param {string} groupId - Group ID
+   * @param {Object} data - { name, description, avatar }
+   */
+  update: (groupId, data) => api.put(`/groups/${groupId}`, data),
+
+  /**
+   * Add a member to group
+   * @param {string} groupId - Group ID
+   * @param {string} userId - User ID to add
+   */
+  addMember: (groupId, userId) => api.post(`/groups/${groupId}/members`, { userId }),
+
+  /**
+   * Remove a member from group
+   * @param {string} groupId - Group ID
+   * @param {string} userId - User ID to remove
+   */
+  removeMember: (groupId, userId) => api.delete(`/groups/${groupId}/members/${userId}`),
+
+  /**
+   * Leave a group
+   * @param {string} groupId - Group ID
+   */
+  leave: (groupId) => api.post(`/groups/${groupId}/leave`),
 };
 
 // Export the axios instance for custom requests

@@ -1,7 +1,7 @@
 // =============================================================================
 // CONVERSATION VIEW COMPONENT
 // =============================================================================
-// Displays a DM conversation with real-time messaging.
+// Displays a conversation (DM or Group) with real-time messaging.
 //
 // Features:
 // - Load message history from API
@@ -9,13 +9,14 @@
 // - Receive messages in real-time
 // - Typing indicators
 // - Auto-scroll to new messages
+// - Supports both DM and Group conversations
 // =============================================================================
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import { messageAPI, userAPI } from '../../services/api';
+import { messageAPI, userAPI, groupAPI } from '../../services/api';
 import Spinner from '../common/Spinner';
 
 // =============================================================================
@@ -83,18 +84,24 @@ function MessageBubble({ message, isOwnMessage, showAvatar }) {
 // =============================================================================
 
 function ConversationView() {
-  const { userId } = useParams();
+  const { userId, groupId } = useParams();
+  const location = useLocation();
   const { user: currentUser } = useAuth();
-  const { sendMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping } = useSocket();
+  const { socket, sendMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping } = useSocket();
+
+  // Determine conversation type
+  const isGroupChat = location.pathname.includes('/group/');
+  const conversationId = isGroupChat ? groupId : userId;
 
   // State
-  const [otherUser, setOtherUser] = useState(null);
+  const [otherUser, setOtherUser] = useState(null);  // For DMs
+  const [group, setGroup] = useState(null);          // For groups
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
-  const [isTyping, setIsTyping] = useState(false);
+  const [typingUsers, setTypingUsers] = useState([]);  // For group: track multiple typing users
 
   // Refs
   const messagesEndRef = useRef(null);
@@ -109,7 +116,7 @@ function ConversationView() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // FETCH USER AND MESSAGES
+  // FETCH CONVERSATION DATA
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
@@ -117,18 +124,31 @@ function ConversationView() {
       try {
         setIsLoading(true);
         setError(null);
+        setOtherUser(null);
+        setGroup(null);
 
-        // Fetch other user's info and message history in parallel
-        const [userResponse, messagesResponse] = await Promise.all([
-          userAPI.getById(userId),
-          messageAPI.getDMMessages(userId),
-        ]);
+        if (isGroupChat) {
+          // Fetch group info and messages
+          const [groupResponse, messagesResponse] = await Promise.all([
+            groupAPI.getById(groupId),
+            messageAPI.getGroupMessages(groupId),
+          ]);
 
-        setOtherUser(userResponse.data.data.user);
-        setMessages(messagesResponse.data.data.messages);
+          setGroup(groupResponse.data.data.group);
+          setMessages(messagesResponse.data.data.messages);
+        } else {
+          // Fetch other user's info and DM message history
+          const [userResponse, messagesResponse] = await Promise.all([
+            userAPI.getById(userId),
+            messageAPI.getDMMessages(userId),
+          ]);
 
-        // Mark messages as read
-        markAsRead(userId);
+          setOtherUser(userResponse.data.data.user);
+          setMessages(messagesResponse.data.data.messages);
+
+          // Mark messages as read for DMs
+          markAsRead(userId);
+        }
       } catch (err) {
         setError(err.message || 'Failed to load conversation');
         console.error('Error loading conversation:', err);
@@ -137,10 +157,10 @@ function ConversationView() {
       }
     };
 
-    if (userId) {
+    if (conversationId) {
       fetchData();
     }
-  }, [userId, markAsRead]);
+  }, [conversationId, isGroupChat, userId, groupId, markAsRead]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -152,36 +172,76 @@ function ConversationView() {
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (!userId) return;
+    if (!conversationId) return;
 
-    // Listen for incoming messages
-    const unsubscribeMessage = subscribe('message:receive', (message) => {
-      // Only add if it's from the user we're chatting with
-      if (message.sender._id === userId || message.sender === userId) {
-        setMessages(prev => [...prev, message]);
-        markAsRead(userId);
-      }
-    });
+    const unsubscribers = [];
 
-    // Listen for typing indicators
-    const unsubscribeTypingStart = subscribe('typing:start', ({ userId: typingUserId }) => {
-      if (typingUserId === userId) {
-        setIsTyping(true);
-      }
-    });
+    if (isGroupChat) {
+      // Listen for incoming group messages
+      unsubscribers.push(
+        subscribe('group:message:receive', (message) => {
+          // Only add if it's for this group
+          if (message.group === groupId) {
+            setMessages(prev => [...prev, message]);
+          }
+        })
+      );
 
-    const unsubscribeTypingStop = subscribe('typing:stop', ({ userId: typingUserId }) => {
-      if (typingUserId === userId) {
-        setIsTyping(false);
-      }
-    });
+      // Group typing indicators
+      unsubscribers.push(
+        subscribe('group:typing:start', ({ groupId: typingGroupId, userId: typingUserId, username }) => {
+          if (typingGroupId === groupId && typingUserId !== currentUser._id) {
+            setTypingUsers(prev => {
+              if (!prev.find(u => u.userId === typingUserId)) {
+                return [...prev, { userId: typingUserId, username }];
+              }
+              return prev;
+            });
+          }
+        })
+      );
+
+      unsubscribers.push(
+        subscribe('group:typing:stop', ({ groupId: typingGroupId, userId: typingUserId }) => {
+          if (typingGroupId === groupId) {
+            setTypingUsers(prev => prev.filter(u => u.userId !== typingUserId));
+          }
+        })
+      );
+    } else {
+      // Listen for incoming DM messages
+      unsubscribers.push(
+        subscribe('message:receive', (message) => {
+          // Only add if it's from the user we're chatting with
+          if (message.sender._id === userId || message.sender === userId) {
+            setMessages(prev => [...prev, message]);
+            markAsRead(userId);
+          }
+        })
+      );
+
+      // DM typing indicators
+      unsubscribers.push(
+        subscribe('typing:start', ({ userId: typingUserId }) => {
+          if (typingUserId === userId) {
+            setTypingUsers([{ userId: typingUserId }]);
+          }
+        })
+      );
+
+      unsubscribers.push(
+        subscribe('typing:stop', ({ userId: typingUserId }) => {
+          if (typingUserId === userId) {
+            setTypingUsers([]);
+          }
+        })
+      );
+    }
 
     return () => {
-      unsubscribeMessage();
-      unsubscribeTypingStart();
-      unsubscribeTypingStop();
+      unsubscribers.forEach(unsub => unsub());
     };
-  }, [userId, subscribe, markAsRead]);
+  }, [conversationId, isGroupChat, userId, groupId, subscribe, markAsRead, currentUser._id]);
 
   // ---------------------------------------------------------------------------
   // HANDLE SEND MESSAGE
@@ -195,13 +255,30 @@ function ConversationView() {
 
     try {
       setIsSending(true);
-      stopTyping(userId);
 
-      // Send via socket
-      const message = await sendMessage(userId, content);
+      if (isGroupChat) {
+        // Stop typing indicator
+        socket?.emit('group:typing:stop', { groupId });
 
-      // Add to local state
-      setMessages(prev => [...prev, message]);
+        // Send group message via socket
+        socket?.emit('group:message:send', { groupId, content }, (response) => {
+          if (response.error) {
+            console.error('Failed to send group message:', response.error);
+            setError('Failed to send message. Please try again.');
+          }
+          // Note: The message will be added via the group:message:receive event
+        });
+      } else {
+        // Stop typing indicator
+        stopTyping(userId);
+
+        // Send DM via socket
+        const message = await sendMessage(userId, content);
+
+        // Add to local state for DM
+        setMessages(prev => [...prev, message]);
+      }
+
       setNewMessage('');
     } catch (err) {
       console.error('Failed to send message:', err);
@@ -218,18 +295,32 @@ function ConversationView() {
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
 
-    // Send typing indicator
-    startTyping(userId);
+    // Send typing indicator based on conversation type
+    if (isGroupChat) {
+      socket?.emit('group:typing:start', { groupId });
 
-    // Clear previous timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
+      // Clear previous timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Stop typing after 2 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        socket?.emit('group:typing:stop', { groupId });
+      }, 2000);
+    } else {
+      startTyping(userId);
+
+      // Clear previous timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Stop typing after 2 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        stopTyping(userId);
+      }, 2000);
     }
-
-    // Stop typing after 2 seconds of inactivity
-    typingTimeoutRef.current = setTimeout(() => {
-      stopTyping(userId);
-    }, 2000);
   };
 
   // ---------------------------------------------------------------------------
@@ -257,7 +348,7 @@ function ConversationView() {
   }
 
   // Error state
-  if (error && !otherUser) {
+  if (error && !otherUser && !group) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
@@ -273,28 +364,72 @@ function ConversationView() {
     );
   }
 
-  const userInitial = (otherUser?.displayName || otherUser?.username || '?')[0].toUpperCase();
+  // Get display info based on conversation type
+  const displayName = isGroupChat
+    ? group?.name
+    : (otherUser?.displayName || otherUser?.username);
+  const displayInitial = (displayName || '?')[0].toUpperCase();
+  const avatarUrl = isGroupChat ? group?.avatar : otherUser?.avatar;
+  const memberCount = isGroupChat ? group?.members?.length : null;
+
+  // Get typing status text
+  const getTypingText = () => {
+    if (typingUsers.length === 0) return null;
+    if (isGroupChat) {
+      if (typingUsers.length === 1) {
+        return `${typingUsers[0].username} is typing...`;
+      }
+      if (typingUsers.length === 2) {
+        return `${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
+      }
+      return `${typingUsers.length} people are typing...`;
+    }
+    return 'Typing...';
+  };
+
+  const typingText = getTypingText();
 
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Header */}
       <div className="h-16 px-4 flex items-center border-b border-[var(--color-border)] flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white font-medium">
-            {otherUser?.avatar ? (
-              <img
-                src={otherUser.avatar}
-                alt={otherUser.displayName}
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              userInitial
-            )}
-          </div>
+          {/* Avatar/Icon */}
+          {isGroupChat ? (
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)] bg-opacity-20 flex items-center justify-center">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName}
+                  className="w-full h-full rounded-lg object-cover"
+                />
+              ) : (
+                <svg className="w-5 h-5 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white font-medium">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                displayInitial
+              )}
+            </div>
+          )}
           <div>
-            <h2 className="font-semibold">{otherUser?.displayName || otherUser?.username}</h2>
+            <h2 className="font-semibold">{displayName}</h2>
             <p className="text-xs text-[var(--color-text-tertiary)]">
-              {isTyping ? 'Typing...' : (isConnected ? 'Online' : 'Offline')}
+              {typingText ? typingText : (
+                isGroupChat
+                  ? `${memberCount} members`
+                  : (isConnected ? 'Online' : 'Offline')
+              )}
             </p>
           </div>
         </div>

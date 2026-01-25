@@ -10,6 +10,7 @@
 
 import Message from '../models/Message.js';
 import User from '../models/User.js';
+import Group from '../models/Group.js';
 
 // =============================================================================
 // GET CONVERSATION MESSAGES
@@ -140,6 +141,85 @@ export const getUnreadCount = async (req, res, next) => {
       status: 'success',
       data: {
         unreadCount,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =============================================================================
+// GET GROUP MESSAGES
+// =============================================================================
+// GET /api/messages/group/:groupId
+// Retrieves message history for a group conversation
+// =============================================================================
+
+export const getGroupMessages = async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id;
+    const { groupId } = req.params;
+
+    // Verify group exists and user is a member
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Group not found',
+      });
+    }
+
+    if (!group.isMember(currentUserId)) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'You are not a member of this group',
+      });
+    }
+
+    // Conversation ID for groups
+    const conversationId = `group:${groupId}`;
+
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    // Fetch messages
+    const messages = await Message.find({
+      conversationId,
+      deleted: false,
+    })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('sender', 'username displayName avatar')
+      .lean();
+
+    // Reverse to show oldest first in the UI
+    messages.reverse();
+
+    // Get total count for pagination
+    const total = await Message.countDocuments({
+      conversationId,
+      deleted: false,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        messages,
+        group: {
+          _id: group._id,
+          name: group.name,
+          avatar: group.avatar,
+        },
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+          hasMore: skip + messages.length < total,
+        },
       },
     });
   } catch (error) {

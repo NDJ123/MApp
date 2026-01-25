@@ -18,12 +18,15 @@
 // actual content to child components.
 // =============================================================================
 
+import { useState } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ContactList from '../users/ContactList';
 import UserDirectory from '../users/UserDirectory';
 import InviteManagement from '../invites/InviteManagement';
 import ConversationView from './ConversationView';
+import GroupList from '../groups/GroupList';
+import CreateGroupModal from '../groups/CreateGroupModal';
 
 // =============================================================================
 // SIDEBAR COMPONENT
@@ -31,7 +34,7 @@ import ConversationView from './ConversationView';
 // The left sidebar showing contacts, groups, and user info
 // =============================================================================
 
-function Sidebar() {
+function Sidebar({ onCreateGroup }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -105,15 +108,13 @@ function Sidebar() {
           </div>
         </div>
 
-        {/* Groups section - placeholder for Phase 4 */}
+        {/* Groups section */}
         <div>
           <h2 className="px-2 py-1 text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
             Groups
           </h2>
-          <div className="mt-2 px-3 py-4 text-center">
-            <p className="text-xs text-[var(--color-text-tertiary)]">
-              Coming soon
-            </p>
+          <div className="mt-2">
+            <GroupList onCreateGroup={onCreateGroup} />
           </div>
         </div>
       </div>
@@ -176,10 +177,12 @@ function WelcomeView() {
 // =============================================================================
 
 function ChatLayout() {
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar - always visible */}
-      <Sidebar />
+      <Sidebar onCreateGroup={() => setIsCreateGroupOpen(true)} />
 
       {/* Main content area - changes based on route */}
       <main className="flex-1 flex flex-col bg-[var(--color-background)]">
@@ -200,6 +203,12 @@ function ChatLayout() {
           <Route path="group/:groupId" element={<ConversationView />} />
         </Routes>
       </main>
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+      />
     </div>
   );
 }

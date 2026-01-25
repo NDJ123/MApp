@@ -39,6 +39,7 @@ import inviteRoutes from './routes/inviteRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import groupRoutes from './routes/groupRoutes.js';
 
 // Socket handlers
 import { setupSocketHandlers } from './socket/socketHandlers.js';
@@ -161,8 +162,7 @@ app.use('/api/invites', inviteRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/messages', messageRoutes);
-// TODO: Add more routes in later phases
-// app.use('/api/groups', groupRoutes);
+app.use('/api/groups', groupRoutes);
 
 // 404 handler - for routes that don't exist
 // Using {*splat} syntax for Express 5 / newer path-to-regexp compatibility

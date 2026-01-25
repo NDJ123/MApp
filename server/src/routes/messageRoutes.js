@@ -7,6 +7,7 @@
 // Routes:
 // GET    /api/messages/dm/:userId      - Get DM conversation history
 // POST   /api/messages/dm/:userId/read - Mark DM conversation as read
+// GET    /api/messages/group/:groupId  - Get group conversation history
 // GET    /api/messages/unread          - Get unread message count
 // =============================================================================
 
@@ -16,6 +17,7 @@ import {
   getDMMessages,
   markDMAsRead,
   getUnreadCount,
+  getGroupMessages,
 } from '../controllers/messageController.js';
 
 const router = express.Router();
@@ -26,6 +28,9 @@ router.use(protect);
 // DM conversation routes
 router.get('/dm/:userId', getDMMessages);
 router.post('/dm/:userId/read', markDMAsRead);
+
+// Group conversation routes
+router.get('/group/:groupId', getGroupMessages);
 
 // Unread count
 router.get('/unread', getUnreadCount);

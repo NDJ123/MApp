@@ -11,6 +11,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Message from '../models/Message.js';
+import Group from '../models/Group.js';
 
 // Store online users: { oderId: Set of socketIds }
 const onlineUsers = new Map();
@@ -194,6 +195,117 @@ export const setupSocketHandlers = (io) => {
       } catch (error) {
         console.error('[Socket] Mark read error:', error);
       }
+    });
+
+    // -------------------------------------------------------------------------
+    // JOIN GROUP ROOMS
+    // -------------------------------------------------------------------------
+    // When user connects, join all their group rooms
+    // -------------------------------------------------------------------------
+
+    const joinGroupRooms = async () => {
+      try {
+        const groups = await Group.find({ 'members.user': user._id, isActive: true });
+        for (const group of groups) {
+          socket.join(`group:${group._id}`);
+          console.log(`[Socket] ${user.username} joined group room: ${group.name}`);
+        }
+      } catch (error) {
+        console.error('[Socket] Error joining group rooms:', error);
+      }
+    };
+    joinGroupRooms();
+
+    // -------------------------------------------------------------------------
+    // JOIN A NEW GROUP ROOM
+    // -------------------------------------------------------------------------
+    // Called when user is added to a group or creates one
+    // -------------------------------------------------------------------------
+
+    socket.on('group:join', ({ groupId }) => {
+      socket.join(`group:${groupId}`);
+      console.log(`[Socket] ${user.username} joined group room: ${groupId}`);
+    });
+
+    // -------------------------------------------------------------------------
+    // SEND GROUP MESSAGE
+    // -------------------------------------------------------------------------
+    // Client sends: { groupId, content }
+    // Server saves to DB and broadcasts to all group members
+    // -------------------------------------------------------------------------
+
+    socket.on('group:message:send', async (data, callback) => {
+      try {
+        const { groupId, content } = data;
+
+        // Validate
+        if (!groupId || !content?.trim()) {
+          return callback?.({ error: 'Group ID and content are required' });
+        }
+
+        // Verify group exists and user is a member
+        const group = await Group.findById(groupId);
+        if (!group) {
+          return callback?.({ error: 'Group not found' });
+        }
+        if (!group.isMember(user._id)) {
+          return callback?.({ error: 'You are not a member of this group' });
+        }
+
+        // Create message with group conversation ID
+        const conversationId = `group:${groupId}`;
+        const message = await Message.create({
+          sender: user._id,
+          group: groupId,
+          conversationId,
+          content: content.trim(),
+          messageType: 'text',
+          readBy: [{ user: user._id, readAt: new Date() }],
+        });
+
+        // Populate sender info
+        await message.populate('sender', 'username displayName avatar');
+
+        const messageData = {
+          _id: message._id,
+          sender: message.sender,
+          group: groupId,
+          conversationId: message.conversationId,
+          content: message.content,
+          messageType: message.messageType,
+          createdAt: message.createdAt,
+        };
+
+        // Broadcast to all group members
+        io.to(`group:${groupId}`).emit('group:message:receive', messageData);
+
+        // Send confirmation to sender
+        callback?.({ success: true, message: messageData });
+
+        console.log(`[Socket] Group message from ${user.username} to ${group.name}`);
+      } catch (error) {
+        console.error('[Socket] Send group message error:', error);
+        callback?.({ error: 'Failed to send message' });
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // GROUP TYPING INDICATOR
+    // -------------------------------------------------------------------------
+
+    socket.on('group:typing:start', ({ groupId }) => {
+      socket.to(`group:${groupId}`).emit('group:typing:start', {
+        groupId,
+        userId: user._id,
+        username: user.username,
+      });
+    });
+
+    socket.on('group:typing:stop', ({ groupId }) => {
+      socket.to(`group:${groupId}`).emit('group:typing:stop', {
+        groupId,
+        userId: user._id,
+      });
     });
 
     // -------------------------------------------------------------------------

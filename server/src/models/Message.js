@@ -32,6 +32,14 @@ const messageSchema = new mongoose.Schema(
       default: null,
     },
 
+    // For group messages: which group
+    // For DMs: this will be null
+    group: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Group',
+      default: null,
+    },
+
     // Conversation identifier - makes it easy to fetch all messages in a conversation
     // For DMs: sorted concatenation of both user IDs (ensures same ID regardless of who sends)
     // For groups: the group ID
@@ -97,6 +105,9 @@ messageSchema.index({ conversationId: 1, createdAt: -1 });
 
 // Index for finding unread messages for a user
 messageSchema.index({ recipient: 1, 'readBy.user': 1 });
+
+// Index for group messages
+messageSchema.index({ group: 1, createdAt: -1 });
 
 // =============================================================================
 // STATIC METHODS
