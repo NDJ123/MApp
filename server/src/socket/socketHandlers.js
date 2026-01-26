@@ -171,20 +171,24 @@ export const setupSocketHandlers = (io) => {
 
         // Fetch link preview asynchronously (don't block the message send)
         if (content?.trim() && messageType === 'text') {
+          console.log(`[Socket] Starting link preview fetch for message ${message._id}`);
           getLinkPreviewForText(content).then(async (linkPreview) => {
+            console.log(`[Socket] Link preview result for ${message._id}:`, linkPreview ? 'found' : 'null');
             if (linkPreview) {
               // Update message with link preview
               await Message.findByIdAndUpdate(message._id, { linkPreview });
+              console.log(`[Socket] Updated message ${message._id} with link preview`);
 
               // Notify both users about the link preview
               const previewData = { messageId: message._id, linkPreview };
+              console.log(`[Socket] Emitting link preview to rooms: ${recipientId.toString()}, ${user._id.toString()}`);
               io.to(recipientId.toString()).emit('message:linkPreview', previewData);
               io.to(user._id.toString()).emit('message:linkPreview', previewData);
 
               console.log(`[Socket] Link preview added for message ${message._id}`);
             }
           }).catch(err => {
-            console.error('[Socket] Link preview error:', err.message);
+            console.error('[Socket] Link preview error:', err.message, err.stack);
           });
         }
       } catch (error) {
@@ -360,12 +364,16 @@ export const setupSocketHandlers = (io) => {
 
         // Fetch link preview asynchronously (don't block the message send)
         if (content?.trim() && messageType === 'text') {
+          console.log(`[Socket] Starting link preview fetch for group message ${message._id}`);
           getLinkPreviewForText(content).then(async (linkPreview) => {
+            console.log(`[Socket] Link preview result for group ${message._id}:`, linkPreview ? 'found' : 'null');
             if (linkPreview) {
               // Update message with link preview
               await Message.findByIdAndUpdate(message._id, { linkPreview });
+              console.log(`[Socket] Updated group message ${message._id} with link preview`);
 
               // Notify all group members about the link preview
+              console.log(`[Socket] Emitting link preview to group room: group:${groupId}`);
               io.to(`group:${groupId}`).emit('message:linkPreview', {
                 messageId: message._id,
                 linkPreview,
@@ -374,7 +382,7 @@ export const setupSocketHandlers = (io) => {
               console.log(`[Socket] Link preview added for group message ${message._id}`);
             }
           }).catch(err => {
-            console.error('[Socket] Link preview error:', err.message);
+            console.error('[Socket] Link preview error:', err.message, err.stack);
           });
         }
       } catch (error) {

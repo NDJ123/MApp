@@ -126,6 +126,7 @@ function decodeHtmlEntities(text) {
  * @returns {Promise<Object|null>} Metadata object or null if failed
  */
 export async function fetchLinkPreview(url) {
+  console.log('[LinkPreview] Fetching preview for:', url);
   try {
     // Validate URL
     new URL(url);
@@ -134,14 +135,18 @@ export async function fetchLinkPreview(url) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
+    console.log('[LinkPreview] Making fetch request...');
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; MApp/1.0; Link Preview Bot)',
-        'Accept': 'text/html,application/xhtml+xml',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
       },
+      redirect: 'follow',
     });
 
+    console.log('[LinkPreview] Response status:', response.status);
     clearTimeout(timeout);
 
     // Check if response is HTML
@@ -168,12 +173,15 @@ export async function fetchLinkPreview(url) {
 
     // Parse the HTML for metadata
     const metadata = parseMetaTags(html, url);
+    console.log('[LinkPreview] Parsed metadata:', JSON.stringify(metadata, null, 2));
 
     // Only return if we have at least a title
     if (metadata.title) {
+      console.log('[LinkPreview] Successfully extracted preview with title:', metadata.title);
       return metadata;
     }
 
+    console.log('[LinkPreview] No title found, returning null');
     return null;
   } catch (error) {
     if (error.name === 'AbortError') {
@@ -191,10 +199,13 @@ export async function fetchLinkPreview(url) {
  * @returns {Promise<Object|null>} Link preview data or null
  */
 export async function getLinkPreviewForText(text) {
+  console.log('[LinkPreview] Extracting URLs from text:', text);
   const urls = extractUrls(text);
+  console.log('[LinkPreview] Found URLs:', urls);
   if (urls.length === 0) return null;
 
   // Only preview the first URL
   const preview = await fetchLinkPreview(urls[0]);
+  console.log('[LinkPreview] Final preview result:', preview ? 'success' : 'null');
   return preview;
 }

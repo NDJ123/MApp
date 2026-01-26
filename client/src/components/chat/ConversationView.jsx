@@ -537,6 +537,7 @@ function ConversationView() {
     // Listen for link preview updates
     unsubscribers.push(
       subscribe('message:linkPreview', ({ messageId, linkPreview }) => {
+        console.log('[ConversationView] Received link preview:', messageId, linkPreview);
         setMessages(prev => prev.map(msg =>
           msg._id === messageId ? { ...msg, linkPreview } : msg
         ));
