@@ -104,14 +104,45 @@ export function SocketProvider({ children }) {
   // SEND MESSAGE
   // ---------------------------------------------------------------------------
 
-  const sendMessage = useCallback((recipientId, content) => {
+  const sendMessage = useCallback((recipientId, content, file = null) => {
     return new Promise((resolve, reject) => {
       if (!socket || !isConnected) {
         reject(new Error('Not connected'));
         return;
       }
 
-      socket.emit('message:send', { recipientId, content }, (response) => {
+      const data = { recipientId, content };
+      if (file) {
+        data.file = file;
+      }
+
+      socket.emit('message:send', data, (response) => {
+        if (response.error) {
+          reject(new Error(response.error));
+        } else {
+          resolve(response.message);
+        }
+      });
+    });
+  }, [socket, isConnected]);
+
+  // ---------------------------------------------------------------------------
+  // SEND GROUP MESSAGE WITH FILE
+  // ---------------------------------------------------------------------------
+
+  const sendGroupMessage = useCallback((groupId, content, file = null) => {
+    return new Promise((resolve, reject) => {
+      if (!socket || !isConnected) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      const data = { groupId, content };
+      if (file) {
+        data.file = file;
+      }
+
+      socket.emit('group:message:send', data, (response) => {
         if (response.error) {
           reject(new Error(response.error));
         } else {
@@ -196,6 +227,7 @@ export function SocketProvider({ children }) {
     isConnected,
     onlineUsers,
     sendMessage,
+    sendGroupMessage,
     startTyping,
     stopTyping,
     markAsRead,

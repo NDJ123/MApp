@@ -52,9 +52,13 @@ const messageSchema = new mongoose.Schema(
     // The actual message content
     content: {
       type: String,
-      required: [true, 'Message cannot be empty'],
+      required: function() {
+        // Content is required only for text messages
+        return this.messageType === 'text';
+      },
       trim: true,
       maxlength: [5000, 'Message cannot exceed 5000 characters'],
+      default: '',
     },
 
     // Type of message
@@ -62,6 +66,22 @@ const messageSchema = new mongoose.Schema(
       type: String,
       enum: ['text', 'image', 'file', 'system'],
       default: 'text',
+    },
+
+    // File attachment (for image/file message types)
+    file: {
+      url: {
+        type: String,  // Base64 data URL or external URL
+      },
+      name: {
+        type: String,  // Original filename
+      },
+      size: {
+        type: Number,  // File size in bytes
+      },
+      mimeType: {
+        type: String,  // MIME type (e.g., 'image/jpeg', 'application/pdf')
+      },
     },
 
     // Track who has read this message

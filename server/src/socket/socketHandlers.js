@@ -94,11 +94,14 @@ export const setupSocketHandlers = (io) => {
 
     socket.on('message:send', async (data, callback) => {
       try {
-        const { recipientId, content } = data;
+        const { recipientId, content, file } = data;
 
-        // Validate
-        if (!recipientId || !content?.trim()) {
-          return callback?.({ error: 'Recipient and content are required' });
+        // Validate - need either content or file
+        if (!recipientId) {
+          return callback?.({ error: 'Recipient is required' });
+        }
+        if (!content?.trim() && !file) {
+          return callback?.({ error: 'Message content or file is required' });
         }
 
         // Verify recipient exists
@@ -107,16 +110,39 @@ export const setupSocketHandlers = (io) => {
           return callback?.({ error: 'Recipient not found' });
         }
 
+        // Validate file if present
+        if (file) {
+          if (!file.url || !file.name || !file.mimeType) {
+            return callback?.({ error: 'Invalid file data' });
+          }
+          // Limit file size to 5MB
+          if (file.size && file.size > 5 * 1024 * 1024) {
+            return callback?.({ error: 'File size must be less than 5MB' });
+          }
+        }
+
         // Generate conversation ID
         const conversationId = Message.getDMConversationId(user._id, recipientId);
+
+        // Determine message type
+        let messageType = 'text';
+        if (file) {
+          messageType = file.mimeType.startsWith('image/') ? 'image' : 'file';
+        }
 
         // Create message
         const message = await Message.create({
           sender: user._id,
           recipient: recipientId,
           conversationId,
-          content: content.trim(),
-          messageType: 'text',
+          content: content?.trim() || '',
+          messageType,
+          file: file ? {
+            url: file.url,
+            name: file.name,
+            size: file.size,
+            mimeType: file.mimeType,
+          } : undefined,
           readBy: [{ user: user._id, readAt: new Date() }], // Sender has read it
         });
 
@@ -130,6 +156,7 @@ export const setupSocketHandlers = (io) => {
           conversationId: message.conversationId,
           content: message.content,
           messageType: message.messageType,
+          file: message.file,
           createdAt: message.createdAt,
         };
 
@@ -139,7 +166,7 @@ export const setupSocketHandlers = (io) => {
         // Send back to sender for confirmation
         callback?.({ success: true, message: messageData });
 
-        console.log(`[Socket] Message from ${user.username} to ${recipient.username}`);
+        console.log(`[Socket] ${messageType} message from ${user.username} to ${recipient.username}`);
       } catch (error) {
         console.error('[Socket] Send message error:', error);
         callback?.({ error: 'Failed to send message' });
@@ -236,11 +263,14 @@ export const setupSocketHandlers = (io) => {
 
     socket.on('group:message:send', async (data, callback) => {
       try {
-        const { groupId, content } = data;
+        const { groupId, content, file } = data;
 
-        // Validate
-        if (!groupId || !content?.trim()) {
-          return callback?.({ error: 'Group ID and content are required' });
+        // Validate - need either content or file
+        if (!groupId) {
+          return callback?.({ error: 'Group ID is required' });
+        }
+        if (!content?.trim() && !file) {
+          return callback?.({ error: 'Message content or file is required' });
         }
 
         // Verify group exists and user is a member
@@ -252,14 +282,37 @@ export const setupSocketHandlers = (io) => {
           return callback?.({ error: 'You are not a member of this group' });
         }
 
+        // Validate file if present
+        if (file) {
+          if (!file.url || !file.name || !file.mimeType) {
+            return callback?.({ error: 'Invalid file data' });
+          }
+          // Limit file size to 5MB
+          if (file.size && file.size > 5 * 1024 * 1024) {
+            return callback?.({ error: 'File size must be less than 5MB' });
+          }
+        }
+
+        // Determine message type
+        let messageType = 'text';
+        if (file) {
+          messageType = file.mimeType.startsWith('image/') ? 'image' : 'file';
+        }
+
         // Create message with group conversation ID
         const conversationId = `group:${groupId}`;
         const message = await Message.create({
           sender: user._id,
           group: groupId,
           conversationId,
-          content: content.trim(),
-          messageType: 'text',
+          content: content?.trim() || '',
+          messageType,
+          file: file ? {
+            url: file.url,
+            name: file.name,
+            size: file.size,
+            mimeType: file.mimeType,
+          } : undefined,
           readBy: [{ user: user._id, readAt: new Date() }],
         });
 
@@ -273,6 +326,7 @@ export const setupSocketHandlers = (io) => {
           conversationId: message.conversationId,
           content: message.content,
           messageType: message.messageType,
+          file: message.file,
           createdAt: message.createdAt,
         };
 
@@ -282,7 +336,7 @@ export const setupSocketHandlers = (io) => {
         // Send confirmation to sender
         callback?.({ success: true, message: messageData });
 
-        console.log(`[Socket] Group message from ${user.username} to ${group.name}`);
+        console.log(`[Socket] Group ${messageType} message from ${user.username} to ${group.name}`);
       } catch (error) {
         console.error('[Socket] Send group message error:', error);
         callback?.({ error: 'Failed to send message' });

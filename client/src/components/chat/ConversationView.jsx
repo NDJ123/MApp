@@ -93,6 +93,63 @@ function ReactionsDisplay({ reactions, currentUserId, onReactionClick }) {
 }
 
 // =============================================================================
+// FILE ATTACHMENT DISPLAY
+// =============================================================================
+
+function FileAttachment({ file, isOwnMessage }) {
+  const isImage = file.mimeType?.startsWith('image/');
+
+  // Format file size
+  const formatSize = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  if (isImage) {
+    return (
+      <a href={file.url} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={file.url}
+          alt={file.name}
+          className="max-w-full max-h-64 rounded-lg object-contain"
+        />
+      </a>
+    );
+  }
+
+  // Non-image file
+  return (
+    <a
+      href={file.url}
+      download={file.name}
+      className={`flex items-center gap-3 p-3 rounded-lg border ${
+        isOwnMessage
+          ? 'bg-white/10 border-white/20 hover:bg-white/20'
+          : 'bg-[var(--color-surface-hover)] border-[var(--color-border)] hover:bg-[var(--color-surface)]'
+      } transition-colors`}
+    >
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+        isOwnMessage ? 'bg-white/20' : 'bg-[var(--color-primary)] bg-opacity-20'
+      }`}>
+        <svg className={`w-5 h-5 ${isOwnMessage ? 'text-white' : 'text-[var(--color-primary)]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{file.name}</p>
+        <p className={`text-xs ${isOwnMessage ? 'text-white/70' : 'text-[var(--color-text-tertiary)]'}`}>
+          {formatSize(file.size)}
+        </p>
+      </div>
+      <svg className={`w-5 h-5 ${isOwnMessage ? 'text-white/70' : 'text-[var(--color-text-tertiary)]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+    </a>
+  );
+}
+
+// =============================================================================
 // MESSAGE BUBBLE COMPONENT
 // =============================================================================
 
@@ -110,6 +167,9 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
     onToggleReaction(message._id, emoji);
   };
 
+  const hasFile = message.file && message.file.url;
+  const hasContent = message.content && message.content.trim();
+
   if (isOwnMessage) {
     return (
       <div
@@ -126,7 +186,14 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
           </div>
           <div className="relative">
             <div className="bg-[var(--color-primary)] text-white rounded-lg px-4 py-2">
-              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              {hasFile && (
+                <div className={hasContent ? 'mb-2' : ''}>
+                  <FileAttachment file={message.file} isOwnMessage={true} />
+                </div>
+              )}
+              {hasContent && (
+                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              )}
             </div>
             {/* Reaction button */}
             {showReactionButton && (
@@ -194,7 +261,14 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
         )}
         <div className="relative">
           <div className="bg-[var(--color-surface)] rounded-lg px-4 py-2">
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            {hasFile && (
+              <div className={hasContent ? 'mb-2' : ''}>
+                <FileAttachment file={message.file} isOwnMessage={false} />
+              </div>
+            )}
+            {hasContent && (
+              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            )}
           </div>
           {/* Reaction button */}
           {showReactionButton && (
@@ -233,7 +307,7 @@ function ConversationView() {
   const { userId, groupId } = useParams();
   const location = useLocation();
   const { user: currentUser } = useAuth();
-  const { socket, sendMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction } = useSocket();
+  const { socket, sendMessage, sendGroupMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction } = useSocket();
 
   // Determine conversation type
   const isGroupChat = location.pathname.includes('/group/');
@@ -248,10 +322,13 @@ function ConversationView() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
   const [typingUsers, setTypingUsers] = useState([]);  // For group: track multiple typing users
+  const [selectedFile, setSelectedFile] = useState(null);  // For file uploads
+  const [filePreview, setFilePreview] = useState(null);    // Preview URL for images
 
   // Refs
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // ---------------------------------------------------------------------------
   // SCROLL TO BOTTOM
@@ -399,6 +476,48 @@ function ConversationView() {
   }, [conversationId, isGroupChat, userId, groupId, subscribe, markAsRead, currentUser._id]);
 
   // ---------------------------------------------------------------------------
+  // FILE HANDLING
+  // ---------------------------------------------------------------------------
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File size must be less than 5MB');
+      return;
+    }
+
+    // Create file reader to convert to base64
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedFile({
+        url: reader.result,
+        name: file.name,
+        size: file.size,
+        mimeType: file.type,
+      });
+
+      // Set preview for images
+      if (file.type.startsWith('image/')) {
+        setFilePreview(reader.result);
+      } else {
+        setFilePreview(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // HANDLE SEND MESSAGE
   // ---------------------------------------------------------------------------
 
@@ -406,7 +525,8 @@ function ConversationView() {
     e?.preventDefault();
 
     const content = newMessage.trim();
-    if (!content || isSending || !isConnected) return;
+    // Need either content or file
+    if ((!content && !selectedFile) || isSending || !isConnected) return;
 
     try {
       setIsSending(true);
@@ -415,26 +535,22 @@ function ConversationView() {
         // Stop typing indicator
         socket?.emit('group:typing:stop', { groupId });
 
-        // Send group message via socket
-        socket?.emit('group:message:send', { groupId, content }, (response) => {
-          if (response.error) {
-            console.error('Failed to send group message:', response.error);
-            setError('Failed to send message. Please try again.');
-          }
-          // Note: The message will be added via the group:message:receive event
-        });
+        // Send group message via socket with file support
+        const message = await sendGroupMessage(groupId, content, selectedFile);
+        // Note: The message will be added via the group:message:receive event
       } else {
         // Stop typing indicator
         stopTyping(userId);
 
-        // Send DM via socket
-        const message = await sendMessage(userId, content);
+        // Send DM via socket with file support
+        const message = await sendMessage(userId, content, selectedFile);
 
         // Add to local state for DM
         setMessages(prev => [...prev, message]);
       }
 
       setNewMessage('');
+      clearSelectedFile();
     } catch (err) {
       console.error('Failed to send message:', err);
       setError('Failed to send message. Please try again.');
@@ -647,9 +763,62 @@ function ConversationView() {
         </div>
       )}
 
+      {/* File preview */}
+      {selectedFile && (
+        <div className="px-4 pt-3 border-t border-[var(--color-border)]">
+          <div className="flex items-center gap-3 p-3 bg-[var(--color-surface)] rounded-lg">
+            {filePreview ? (
+              <img src={filePreview} alt="Preview" className="w-16 h-16 object-cover rounded" />
+            ) : (
+              <div className="w-16 h-16 bg-[var(--color-primary)] bg-opacity-20 rounded flex items-center justify-center">
+                <svg className="w-8 h-8 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">{selectedFile.name}</p>
+              <p className="text-xs text-[var(--color-text-tertiary)]">
+                {selectedFile.size < 1024 * 1024
+                  ? `${(selectedFile.size / 1024).toFixed(1)} KB`
+                  : `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={clearSelectedFile}
+              className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full transition-colors"
+            >
+              <svg className="w-5 h-5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Message input */}
-      <div className="p-4 border-t border-[var(--color-border)] flex-shrink-0">
+      <div className={`p-4 ${selectedFile ? '' : 'border-t border-[var(--color-border)]'} flex-shrink-0`}>
         <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+          {/* File upload button */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            className="hidden"
+            accept="image/*,.pdf,.doc,.docx,.txt,.zip"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!isConnected || isSending}
+            className="p-3 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface)] rounded-lg transition-colors disabled:opacity-50"
+            title="Attach file"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+          </button>
           <textarea
             value={newMessage}
             onChange={handleInputChange}
@@ -661,7 +830,7 @@ function ConversationView() {
           />
           <button
             type="submit"
-            disabled={!newMessage.trim() || !isConnected || isSending}
+            disabled={(!newMessage.trim() && !selectedFile) || !isConnected || isSending}
             className="px-4 py-3 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? (
