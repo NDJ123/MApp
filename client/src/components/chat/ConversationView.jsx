@@ -540,7 +540,7 @@ function ConversationView() {
   const { userId, groupId } = useParams();
   const location = useLocation();
   const { user: currentUser } = useAuth();
-  const { socket, sendMessage, sendGroupMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction, editMessage, deleteMessage } = useSocket();
+  const { socket, sendMessage, sendGroupMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction, editMessage, deleteMessage, isUserOnline } = useSocket();
 
   // Determine conversation type
   const isGroupChat = location.pathname.includes('/group/');
@@ -1033,15 +1033,21 @@ function ConversationView() {
               )}
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white font-medium">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={displayName}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                displayInitial
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white font-medium">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  displayInitial
+                )}
+              </div>
+              {/* Online indicator */}
+              {otherUser && isUserOnline(otherUser._id) && (
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[var(--color-bg)]" />
               )}
             </div>
           )}
@@ -1051,7 +1057,7 @@ function ConversationView() {
               {typingText ? typingText : (
                 isGroupChat
                   ? `${memberCount} members`
-                  : (isConnected ? 'Online' : 'Offline')
+                  : (otherUser && isUserOnline(otherUser._id) ? 'Online' : 'Offline')
               )}
             </p>
           </div>

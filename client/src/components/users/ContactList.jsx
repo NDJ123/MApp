@@ -13,6 +13,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { contactAPI } from '../../services/api';
+import { useSocket } from '../../context/SocketContext';
 import Spinner from '../common/Spinner';
 
 // =============================================================================
@@ -21,7 +22,7 @@ import Spinner from '../common/Spinner';
 // A single contact in the list
 // =============================================================================
 
-function ContactItem({ contact, isActive, onClick }) {
+function ContactItem({ contact, isActive, isOnline, onClick }) {
   // Get first letter for avatar
   const initial = (contact.displayName || contact.username || '?')[0].toUpperCase();
 
@@ -36,16 +37,22 @@ function ContactItem({ contact, isActive, onClick }) {
         }
       `}
     >
-      {/* Avatar */}
-      <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-        {contact.avatar ? (
-          <img
-            src={contact.avatar}
-            alt={contact.displayName}
-            className="w-full h-full rounded-full object-cover"
-          />
-        ) : (
-          initial
+      {/* Avatar with online indicator */}
+      <div className="relative flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-sm font-medium">
+          {contact.avatar ? (
+            <img
+              src={contact.avatar}
+              alt={contact.displayName}
+              className="w-full h-full rounded-full object-cover"
+            />
+          ) : (
+            initial
+          )}
+        </div>
+        {/* Online indicator */}
+        {isOnline && (
+          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[var(--color-bg)]" />
         )}
       </div>
 
@@ -69,6 +76,7 @@ function ContactList({ activeContactId, onContactSelect }) {
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
+  const { isUserOnline } = useSocket();
 
   // -------------------------------------------------------------------------
   // FETCH CONTACTS
@@ -159,6 +167,7 @@ function ContactList({ activeContactId, onContactSelect }) {
           key={contact._id}
           contact={contact}
           isActive={activeContactId === contact._id}
+          isOnline={isUserOnline(contact._id)}
           onClick={handleContactClick}
         />
       ))}

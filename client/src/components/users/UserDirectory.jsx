@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { userAPI, contactAPI } from '../../services/api';
+import { useSocket } from '../../context/SocketContext';
 import Spinner from '../common/Spinner';
 
 // =============================================================================
@@ -21,22 +22,28 @@ import Spinner from '../common/Spinner';
 // Displays a single user with their info and contact action button
 // =============================================================================
 
-function UserCard({ user, isContact, onAddContact, onRemoveContact, isLoading }) {
+function UserCard({ user, isContact, isOnline, onAddContact, onRemoveContact, isLoading }) {
   // Get first letter for avatar
   const initial = (user.displayName || user.username || '?')[0].toUpperCase();
 
   return (
     <div className="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors">
-      {/* Avatar */}
-      <div className="w-12 h-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-lg font-medium flex-shrink-0">
-        {user.avatar ? (
-          <img
-            src={user.avatar}
-            alt={user.displayName}
-            className="w-full h-full rounded-full object-cover"
-          />
-        ) : (
-          initial
+      {/* Avatar with online indicator */}
+      <div className="relative flex-shrink-0">
+        <div className="w-12 h-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-lg font-medium">
+          {user.avatar ? (
+            <img
+              src={user.avatar}
+              alt={user.displayName}
+              className="w-full h-full rounded-full object-cover"
+            />
+          ) : (
+            initial
+          )}
+        </div>
+        {/* Online indicator */}
+        {isOnline && (
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[var(--color-surface)]" />
         )}
       </div>
 
@@ -100,6 +107,9 @@ function UserDirectory() {
 
   // Debounce timer for search
   const [searchTimer, setSearchTimer] = useState(null);
+
+  // Socket context for online status
+  const { isUserOnline } = useSocket();
 
   // -------------------------------------------------------------------------
   // FETCH USERS
@@ -310,6 +320,7 @@ function UserDirectory() {
                     key={user._id}
                     user={user}
                     isContact={contacts.has(user._id)}
+                    isOnline={isUserOnline(user._id)}
                     onAddContact={handleAddContact}
                     onRemoveContact={handleRemoveContact}
                     isLoading={loadingUserId === user._id}
