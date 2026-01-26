@@ -93,6 +93,63 @@ function ReactionsDisplay({ reactions, currentUserId, onReactionClick }) {
 }
 
 // =============================================================================
+// LINK PREVIEW COMPONENT
+// =============================================================================
+
+function LinkPreview({ preview, isOwnMessage }) {
+  if (!preview || !preview.url) return null;
+
+  return (
+    <a
+      href={preview.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`block mt-2 rounded-lg overflow-hidden border ${
+        isOwnMessage
+          ? 'bg-white/10 border-white/20 hover:bg-white/20'
+          : 'bg-[var(--color-surface-hover)] border-[var(--color-border)] hover:bg-[var(--color-surface)]'
+      } transition-colors`}
+    >
+      {preview.image && (
+        <div className="w-full h-32 overflow-hidden">
+          <img
+            src={preview.image}
+            alt={preview.title || 'Link preview'}
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        </div>
+      )}
+      <div className="p-3">
+        <div className="flex items-center gap-2 mb-1">
+          {preview.favicon && (
+            <img
+              src={preview.favicon}
+              alt=""
+              className="w-4 h-4"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          )}
+          <span className={`text-xs ${isOwnMessage ? 'text-white/60' : 'text-[var(--color-text-tertiary)]'}`}>
+            {preview.siteName || new URL(preview.url).hostname}
+          </span>
+        </div>
+        {preview.title && (
+          <p className={`font-medium text-sm line-clamp-2 ${isOwnMessage ? 'text-white' : ''}`}>
+            {preview.title}
+          </p>
+        )}
+        {preview.description && (
+          <p className={`text-xs mt-1 line-clamp-2 ${isOwnMessage ? 'text-white/70' : 'text-[var(--color-text-secondary)]'}`}>
+            {preview.description}
+          </p>
+        )}
+      </div>
+    </a>
+  );
+}
+
+// =============================================================================
 // FILE ATTACHMENT DISPLAY
 // =============================================================================
 
@@ -169,6 +226,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
 
   const hasFile = message.file && message.file.url;
   const hasContent = message.content && message.content.trim();
+  const hasLinkPreview = message.linkPreview && message.linkPreview.url;
 
   if (isOwnMessage) {
     return (
@@ -193,6 +251,9 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
               )}
               {hasContent && (
                 <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              )}
+              {hasLinkPreview && (
+                <LinkPreview preview={message.linkPreview} isOwnMessage={true} />
               )}
             </div>
             {/* Reaction button */}
@@ -268,6 +329,9 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
             )}
             {hasContent && (
               <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            )}
+            {hasLinkPreview && (
+              <LinkPreview preview={message.linkPreview} isOwnMessage={false} />
             )}
           </div>
           {/* Reaction button */}
@@ -466,6 +530,15 @@ function ConversationView() {
       subscribe('reaction:updated', ({ messageId, reactions }) => {
         setMessages(prev => prev.map(msg =>
           msg._id === messageId ? { ...msg, reactions } : msg
+        ));
+      })
+    );
+
+    // Listen for link preview updates
+    unsubscribers.push(
+      subscribe('message:linkPreview', ({ messageId, linkPreview }) => {
+        setMessages(prev => prev.map(msg =>
+          msg._id === messageId ? { ...msg, linkPreview } : msg
         ));
       })
     );

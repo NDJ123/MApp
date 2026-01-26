@@ -84,6 +84,28 @@ const messageSchema = new mongoose.Schema(
       },
     },
 
+    // Link preview for URLs in the message
+    linkPreview: {
+      url: {
+        type: String,  // The URL that was previewed
+      },
+      title: {
+        type: String,  // Page title
+      },
+      description: {
+        type: String,  // Meta description
+      },
+      image: {
+        type: String,  // og:image URL
+      },
+      siteName: {
+        type: String,  // Site name (e.g., "YouTube", "GitHub")
+      },
+      favicon: {
+        type: String,  // Favicon URL
+      },
+    },
+
     // Track who has read this message
     readBy: [{
       user: {

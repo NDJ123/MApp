@@ -12,6 +12,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Message from '../models/Message.js';
 import Group from '../models/Group.js';
+import { getLinkPreviewForText } from '../utils/linkPreview.js';
 
 // Store online users: { oderId: Set of socketIds }
 const onlineUsers = new Map();
@@ -167,6 +168,25 @@ export const setupSocketHandlers = (io) => {
         callback?.({ success: true, message: messageData });
 
         console.log(`[Socket] ${messageType} message from ${user.username} to ${recipient.username}`);
+
+        // Fetch link preview asynchronously (don't block the message send)
+        if (content?.trim() && messageType === 'text') {
+          getLinkPreviewForText(content).then(async (linkPreview) => {
+            if (linkPreview) {
+              // Update message with link preview
+              await Message.findByIdAndUpdate(message._id, { linkPreview });
+
+              // Notify both users about the link preview
+              const previewData = { messageId: message._id, linkPreview };
+              io.to(recipientId.toString()).emit('message:linkPreview', previewData);
+              io.to(user._id.toString()).emit('message:linkPreview', previewData);
+
+              console.log(`[Socket] Link preview added for message ${message._id}`);
+            }
+          }).catch(err => {
+            console.error('[Socket] Link preview error:', err.message);
+          });
+        }
       } catch (error) {
         console.error('[Socket] Send message error:', error);
         callback?.({ error: 'Failed to send message' });
@@ -337,6 +357,26 @@ export const setupSocketHandlers = (io) => {
         callback?.({ success: true, message: messageData });
 
         console.log(`[Socket] Group ${messageType} message from ${user.username} to ${group.name}`);
+
+        // Fetch link preview asynchronously (don't block the message send)
+        if (content?.trim() && messageType === 'text') {
+          getLinkPreviewForText(content).then(async (linkPreview) => {
+            if (linkPreview) {
+              // Update message with link preview
+              await Message.findByIdAndUpdate(message._id, { linkPreview });
+
+              // Notify all group members about the link preview
+              io.to(`group:${groupId}`).emit('message:linkPreview', {
+                messageId: message._id,
+                linkPreview,
+              });
+
+              console.log(`[Socket] Link preview added for group message ${message._id}`);
+            }
+          }).catch(err => {
+            console.error('[Socket] Link preview error:', err.message);
+          });
+        }
       } catch (error) {
         console.error('[Socket] Send group message error:', error);
         callback?.({ error: 'Failed to send message' });
