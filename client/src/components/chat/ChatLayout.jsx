@@ -334,10 +334,10 @@ function ChatLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden relative">
-      {/* Backdrop overlay for mobile - transparent to show content behind */}
+      {/* Invisible tap area to close sidebar - fully transparent */}
       {isMobile && isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-20 z-40 transition-opacity duration-300"
+          className="fixed inset-0 z-40"
           onClick={handleCloseSidebar}
         />
       )}
