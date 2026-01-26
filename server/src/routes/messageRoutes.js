@@ -20,6 +20,7 @@ import {
   getGroupMessages,
   addReaction,
   removeReaction,
+  fetchLinkPreview,
 } from '../controllers/messageController.js';
 
 const router = express.Router();
@@ -40,5 +41,8 @@ router.get('/unread', getUnreadCount);
 // Reaction routes
 router.post('/:messageId/reactions', addReaction);
 router.delete('/:messageId/reactions', removeReaction);
+
+// Link preview route
+router.post('/:messageId/link-preview', fetchLinkPreview);
 
 export default router;

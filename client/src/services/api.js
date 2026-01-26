@@ -329,6 +329,12 @@ export const messageAPI = {
    * @param {string} emoji - Emoji to remove
    */
   removeReaction: (messageId, emoji) => api.delete(`/messages/${messageId}/reactions`, { data: { emoji } }),
+
+  /**
+   * Fetch link preview for a message
+   * @param {string} messageId - Message ID
+   */
+  fetchLinkPreview: (messageId) => api.post(`/messages/${messageId}/link-preview`),
 };
 
 // =============================================================================

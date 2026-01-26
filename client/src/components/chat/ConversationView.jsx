@@ -613,54 +613,44 @@ function ConversationView() {
     return urlRegex.test(text);
   };
 
-  // Fallback: re-fetch messages to get link preview if socket event fails
-  // Retries multiple times with increasing delays
-  const fetchLinkPreviewFallback = (messageId, attempt = 1) => {
-    const delays = [3000, 5000, 8000]; // Retry at 3s, 5s, 8s
-    if (attempt > delays.length) {
-      console.log('[ConversationView] Fallback: max retries reached for', messageId);
-      return;
-    }
+  // Fetch link preview using direct API call
+  // This bypasses socket issues entirely
+  const fetchLinkPreviewForMessage = async (messageId, attempt = 1) => {
+    const maxAttempts = 3;
+    const delay = attempt * 2000; // 2s, 4s, 6s
 
-    const delay = delays[attempt - 1];
-    console.log(`[ConversationView] Scheduling fallback attempt ${attempt} for ${messageId} in ${delay}ms`);
+    console.log(`[ConversationView] Scheduling link preview fetch for ${messageId}, attempt ${attempt} in ${delay}ms`);
 
     setTimeout(async () => {
       try {
-        // Use ref to check current state (avoid stale closure)
+        // Check if already has preview
         const currentMsg = messagesRef.current.find(m => String(m._id) === String(messageId));
         if (currentMsg?.linkPreview) {
-          console.log('[ConversationView] Link preview already present, skipping fallback');
+          console.log('[ConversationView] Link preview already present, skipping');
           return;
         }
 
-        console.log(`[ConversationView] Fallback attempt ${attempt}: fetching messages for ${messageId}`);
-        const response = isGroupChat
-          ? await messageAPI.getGroupMessages(groupId)
-          : await messageAPI.getDMMessages(userId);
+        console.log(`[ConversationView] Fetching link preview for ${messageId} via API`);
+        const response = await messageAPI.fetchLinkPreview(messageId);
+        const { linkPreview } = response.data.data;
 
-        const fetchedMessages = response.data.data.messages;
-        console.log('[ConversationView] Fetched message IDs:', fetchedMessages.map(m => m._id));
+        console.log('[ConversationView] API response:', linkPreview ? 'got preview' : 'no preview');
 
-        // Use string comparison to be safe
-        const updatedMsg = fetchedMessages.find(m => String(m._id) === String(messageId));
-        console.log('[ConversationView] Looking for:', messageId, 'Found:', updatedMsg?._id);
-        console.log('[ConversationView] Has linkPreview:', !!updatedMsg?.linkPreview);
-
-        if (updatedMsg?.linkPreview) {
-          console.log('[ConversationView] Fallback: found link preview, updating state');
+        if (linkPreview) {
           setMessages(prev => prev.map(msg =>
-            String(msg._id) === String(messageId) ? { ...msg, linkPreview: updatedMsg.linkPreview } : msg
+            String(msg._id) === String(messageId) ? { ...msg, linkPreview } : msg
           ));
-        } else {
-          console.log('[ConversationView] Fallback: no link preview found, scheduling retry');
-          // Schedule next attempt
-          fetchLinkPreviewFallback(messageId, attempt + 1);
+          console.log('[ConversationView] Link preview updated in state');
+        } else if (attempt < maxAttempts) {
+          // Retry - maybe the server hasn't finished fetching yet
+          console.log('[ConversationView] No preview yet, scheduling retry');
+          fetchLinkPreviewForMessage(messageId, attempt + 1);
         }
       } catch (err) {
-        console.error('[ConversationView] Fallback fetch error:', err);
-        // Still retry on error
-        fetchLinkPreviewFallback(messageId, attempt + 1);
+        console.error('[ConversationView] API fetch error:', err);
+        if (attempt < maxAttempts) {
+          fetchLinkPreviewForMessage(messageId, attempt + 1);
+        }
       }
     }, delay);
   };
@@ -685,7 +675,7 @@ function ConversationView() {
 
         // If message contains URL, schedule fallback fetch
         if (content && containsUrl(content)) {
-          fetchLinkPreviewFallback(message._id);
+          fetchLinkPreviewForMessage(message._id);
         }
       } else {
         // Stop typing indicator
@@ -699,7 +689,7 @@ function ConversationView() {
 
         // If message contains URL, schedule fallback fetch
         if (content && containsUrl(content)) {
-          fetchLinkPreviewFallback(message._id);
+          fetchLinkPreviewForMessage(message._id);
         }
       }
 

@@ -11,6 +11,7 @@
 import Message from '../models/Message.js';
 import User from '../models/User.js';
 import Group from '../models/Group.js';
+import { getLinkPreviewForText } from '../utils/linkPreview.js';
 
 // =============================================================================
 // GET CONVERSATION MESSAGES
@@ -337,6 +338,73 @@ export const removeReaction = async (req, res, next) => {
       },
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// =============================================================================
+// FETCH LINK PREVIEW FOR MESSAGE
+// =============================================================================
+// POST /api/messages/:messageId/link-preview
+// Fetches and saves link preview for a message
+// =============================================================================
+
+export const fetchLinkPreview = async (req, res, next) => {
+  try {
+    const { messageId } = req.params;
+
+    console.log(`[API] Fetching link preview for message ${messageId}`);
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Message not found',
+      });
+    }
+
+    // If message already has a link preview, return it
+    if (message.linkPreview && message.linkPreview.url) {
+      console.log(`[API] Message ${messageId} already has link preview`);
+      return res.status(200).json({
+        status: 'success',
+        data: { linkPreview: message.linkPreview },
+      });
+    }
+
+    // Check if message has text content
+    if (!message.content || !message.content.trim()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Message has no content',
+      });
+    }
+
+    console.log(`[API] Fetching preview for: "${message.content.substring(0, 100)}..."`);
+
+    // Fetch link preview
+    const linkPreview = await getLinkPreviewForText(message.content);
+
+    if (!linkPreview) {
+      console.log(`[API] No link preview found for message ${messageId}`);
+      return res.status(200).json({
+        status: 'success',
+        data: { linkPreview: null },
+      });
+    }
+
+    // Save to message
+    message.linkPreview = linkPreview;
+    await message.save();
+
+    console.log(`[API] Link preview saved for message ${messageId}`);
+
+    res.status(200).json({
+      status: 'success',
+      data: { linkPreview },
+    });
+  } catch (error) {
+    console.error('[API] Fetch link preview error:', error);
     next(error);
   }
 };
