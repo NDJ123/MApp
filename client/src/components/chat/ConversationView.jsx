@@ -537,10 +537,16 @@ function ConversationView() {
     // Listen for link preview updates
     unsubscribers.push(
       subscribe('message:linkPreview', ({ messageId, linkPreview }) => {
-        console.log('[ConversationView] Received link preview:', messageId, linkPreview);
-        setMessages(prev => prev.map(msg =>
-          msg._id === messageId ? { ...msg, linkPreview } : msg
-        ));
+        console.log('[ConversationView] Received link preview for message:', messageId);
+        console.log('[ConversationView] Preview data:', linkPreview);
+        setMessages(prev => {
+          console.log('[ConversationView] Current message IDs:', prev.map(m => m._id));
+          const found = prev.find(m => m._id === messageId);
+          console.log('[ConversationView] Found matching message:', found ? 'yes' : 'no');
+          return prev.map(msg =>
+            msg._id === messageId ? { ...msg, linkPreview } : msg
+          );
+        });
       })
     );
 

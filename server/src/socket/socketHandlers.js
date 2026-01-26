@@ -151,7 +151,7 @@ export const setupSocketHandlers = (io) => {
         await message.populate('sender', 'username displayName avatar');
 
         const messageData = {
-          _id: message._id,
+          _id: message._id.toString(), // Ensure string for consistency
           sender: message.sender,
           recipient: message.recipient,
           conversationId: message.conversationId,
@@ -180,8 +180,9 @@ export const setupSocketHandlers = (io) => {
               console.log(`[Socket] Updated message ${message._id} with link preview`);
 
               // Notify both users about the link preview
-              const previewData = { messageId: message._id, linkPreview };
+              const previewData = { messageId: message._id.toString(), linkPreview };
               console.log(`[Socket] Emitting link preview to rooms: ${recipientId.toString()}, ${user._id.toString()}`);
+              console.log(`[Socket] Preview messageId: ${previewData.messageId}`);
               io.to(recipientId.toString()).emit('message:linkPreview', previewData);
               io.to(user._id.toString()).emit('message:linkPreview', previewData);
 
@@ -344,7 +345,7 @@ export const setupSocketHandlers = (io) => {
         await message.populate('sender', 'username displayName avatar');
 
         const messageData = {
-          _id: message._id,
+          _id: message._id.toString(), // Ensure string for consistency
           sender: message.sender,
           group: groupId,
           conversationId: message.conversationId,
@@ -373,11 +374,9 @@ export const setupSocketHandlers = (io) => {
               console.log(`[Socket] Updated group message ${message._id} with link preview`);
 
               // Notify all group members about the link preview
-              console.log(`[Socket] Emitting link preview to group room: group:${groupId}`);
-              io.to(`group:${groupId}`).emit('message:linkPreview', {
-                messageId: message._id,
-                linkPreview,
-              });
+              const groupPreviewData = { messageId: message._id.toString(), linkPreview };
+              console.log(`[Socket] Emitting link preview to group room: group:${groupId}, messageId: ${groupPreviewData.messageId}`);
+              io.to(`group:${groupId}`).emit('message:linkPreview', groupPreviewData);
 
               console.log(`[Socket] Link preview added for group message ${message._id}`);
             }
