@@ -92,10 +92,11 @@ app.use(cors({
 
 // Parse JSON request bodies
 // When someone sends JSON data, this makes it available as req.body
-app.use(express.json({ limit: '10kb' }));  // Limit body size for security
+// Increased limit to 5MB to support base64 avatar uploads
+app.use(express.json({ limit: '5mb' }));
 
 // Parse URL-encoded data (form submissions)
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // Note: NoSQL injection sanitization removed for Express 5 compatibility
 // For production, consider using mongoose schema validation instead
