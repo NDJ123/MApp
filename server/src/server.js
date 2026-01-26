@@ -56,6 +56,21 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mapp';
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
+// Parse allowed origins - supports comma-separated list for multiple origins
+const getAllowedOrigins = () => {
+  if (NODE_ENV === 'development') {
+    return [CLIENT_URL, 'http://localhost:5173', 'http://localhost:3000'];
+  }
+  // In production, allow CLIENT_URL and any .onrender.com subdomain
+  const origins = [CLIENT_URL];
+  if (process.env.ADDITIONAL_ORIGINS) {
+    origins.push(...process.env.ADDITIONAL_ORIGINS.split(',').map(o => o.trim()));
+  }
+  return origins;
+};
+
+const allowedOrigins = getAllowedOrigins();
+
 // -----------------------------------------------------------------------------
 // EXPRESS APP SETUP
 // -----------------------------------------------------------------------------
@@ -83,12 +98,24 @@ app.use(helmet());
 
 // Security: Enable CORS (Cross-Origin Resource Sharing)
 // This allows our React frontend (different origin) to make requests to this server
-app.use(cors({
-  origin: CLIENT_URL,           // Only allow requests from our frontend
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+
+    // Check if origin is in allowed list or matches .onrender.com pattern
+    if (allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+      callback(null, true);
+    } else {
+      console.log('[CORS] Blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,            // Allow cookies to be sent
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+};
+app.use(cors(corsOptions));
 
 // Parse JSON request bodies
 // When someone sends JSON data, this makes it available as req.body
@@ -124,13 +151,25 @@ app.use('/api', limiter);     // Only apply to API routes
 
 const io = new SocketServer(httpServer, {
   cors: {
-    origin: CLIENT_URL,
+    origin: function (origin, callback) {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+
+      // Check if origin is in allowed list or matches .onrender.com pattern
+      if (allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
   // Ping every 25 seconds to detect dead connections
   pingTimeout: 60000,
   pingInterval: 25000,
+  // Allow both transports for better compatibility
+  transports: ['websocket', 'polling'],
 });
 
 // Make io available to routes (we'll use this later for emitting events)

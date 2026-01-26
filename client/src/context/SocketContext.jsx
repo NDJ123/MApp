@@ -59,6 +59,7 @@ export function SocketProvider({ children }) {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      transports: ['websocket', 'polling'], // Prefer WebSocket, fallback to polling
     });
 
     // Connection events
