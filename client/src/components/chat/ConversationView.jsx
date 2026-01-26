@@ -254,9 +254,8 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
   const hasContent = message.content && message.content.trim();
   const hasLinkPreview = message.linkPreview && message.linkPreview.url;
   const isEdited = !!message.editedAt;
-  // Default messageType to 'text' for backwards compatibility
-  const messageType = message.messageType || 'text';
-  const canEdit = isOwnMessage && messageType === 'text' && hasContent && !hasFile;
+  // Allow editing text messages that have content and no file attachment
+  const canEdit = isOwnMessage && !hasFile && !!hasContent;
 
   if (isOwnMessage) {
     return (
@@ -270,8 +269,8 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
       >
         <div className="max-w-[70%]">
           <div className="flex items-center gap-2 justify-end mb-1">
-            {/* Action buttons - appear on hover */}
-            {showActions && !isEditing && (
+            {/* Action buttons - always visible for debugging */}
+            {!isEditing && (
               <div className="flex gap-1">
                 {canEdit && (
                   <button
