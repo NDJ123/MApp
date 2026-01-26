@@ -14,11 +14,13 @@
 // |                  |                        |
 // +------------------+------------------------+
 //
+// On mobile, the sidebar slides in/out and is hidden when viewing content.
+//
 // This is a "layout component" - it structures the page but delegates
 // actual content to child components.
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ContactList from '../users/ContactList';
@@ -29,12 +31,35 @@ import GroupList from '../groups/GroupList';
 import CreateGroupModal from '../groups/CreateGroupModal';
 
 // =============================================================================
+// MOBILE BREAKPOINT HOOK
+// =============================================================================
+// Returns true if viewport is mobile-sized (< 768px)
+// =============================================================================
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return isMobile;
+}
+
+// =============================================================================
 // SIDEBAR COMPONENT
 // =============================================================================
 // The left sidebar showing contacts, groups, and user info
 // =============================================================================
 
-function Sidebar({ onCreateGroup }) {
+function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -49,20 +74,38 @@ function Sidebar({ onCreateGroup }) {
     navigate('/login');
   };
 
+  // Handle navigation with mobile close
+  const handleNavClick = () => {
+    if (onNavigate) onNavigate();
+  };
+
   // Get user initial for avatar
   const userInitial = user?.displayName?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'U';
 
   return (
-    <aside className="w-[var(--sidebar-width)] h-screen flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-border)]">
+    <aside className="w-[var(--sidebar-width)] h-full flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-border)]">
       {/* Header */}
-      <div className="p-4 border-b border-[var(--color-border)]">
+      <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between">
         <h1 className="text-xl font-bold text-[var(--color-primary)]">MApp</h1>
+        {/* Close button - only visible on mobile */}
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="md:hidden p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+            aria-label="Close sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Navigation buttons */}
       <div className="p-2 border-b border-[var(--color-border)] space-y-1">
         <Link
           to="/chat/directory"
+          onClick={handleNavClick}
           className={`
             flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
             ${isDirectoryActive
@@ -80,6 +123,7 @@ function Sidebar({ onCreateGroup }) {
 
         <Link
           to="/chat/invites"
+          onClick={handleNavClick}
           className={`
             flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
             ${isInvitesActive
@@ -103,7 +147,7 @@ function Sidebar({ onCreateGroup }) {
           <h2 className="px-2 py-1 text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
             Direct Messages
           </h2>
-          <div className="mt-2">
+          <div className="mt-2" onClick={handleNavClick}>
             <ContactList />
           </div>
         </div>
@@ -113,7 +157,7 @@ function Sidebar({ onCreateGroup }) {
           <h2 className="px-2 py-1 text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
             Groups
           </h2>
-          <div className="mt-2">
+          <div className="mt-2" onClick={handleNavClick}>
             <GroupList onCreateGroup={onCreateGroup} />
           </div>
         </div>
@@ -159,14 +203,91 @@ function Sidebar({ onCreateGroup }) {
   );
 }
 
-function WelcomeView() {
+function WelcomeView({ onOpenSidebar, isMobile }) {
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-semibold mb-2">Welcome to MApp</h2>
-        <p className="text-[var(--color-text-secondary)]">
-          Select a conversation to start messaging
-        </p>
+    <div className="flex-1 flex flex-col">
+      {/* Mobile header */}
+      {isMobile && (
+        <div className="h-14 px-4 flex items-center border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+          <button
+            onClick={onOpenSidebar}
+            className="p-2 -ml-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+            aria-label="Open menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <h1 className="ml-3 text-lg font-semibold text-[var(--color-primary)]">MApp</h1>
+        </div>
+      )}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center px-4">
+          <h2 className="text-2xl font-semibold mb-2">Welcome to MApp</h2>
+          <p className="text-[var(--color-text-secondary)]">
+            {isMobile ? 'Tap the menu to start a conversation' : 'Select a conversation to start messaging'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// MOBILE HEADER COMPONENT
+// =============================================================================
+// Header bar shown on mobile with hamburger menu
+// =============================================================================
+
+function MobileHeader({ onOpenSidebar, title }) {
+  return (
+    <div className="md:hidden h-14 px-4 flex items-center border-b border-[var(--color-border)] bg-[var(--color-surface)] flex-shrink-0">
+      <button
+        onClick={onOpenSidebar}
+        className="p-2 -ml-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+        aria-label="Open menu"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <h1 className="ml-3 text-lg font-semibold">{title}</h1>
+    </div>
+  );
+}
+
+// =============================================================================
+// WRAPPER COMPONENTS FOR ROUTES WITH MOBILE HEADER
+// =============================================================================
+
+function DirectoryWithHeader({ onOpenSidebar, isMobile }) {
+  return (
+    <div className="flex-1 flex flex-col h-full">
+      {isMobile && <MobileHeader onOpenSidebar={onOpenSidebar} title="User Directory" />}
+      <div className="flex-1 overflow-hidden">
+        <UserDirectory />
+      </div>
+    </div>
+  );
+}
+
+function InvitesWithHeader({ onOpenSidebar, isMobile }) {
+  return (
+    <div className="flex-1 flex flex-col h-full">
+      {isMobile && <MobileHeader onOpenSidebar={onOpenSidebar} title="Invite Users" />}
+      <div className="flex-1 overflow-hidden">
+        <InviteManagement />
+      </div>
+    </div>
+  );
+}
+
+function ConversationWithHeader({ onOpenSidebar, isMobile }) {
+  return (
+    <div className="flex-1 flex flex-col h-full">
+      {isMobile && <MobileHeader onOpenSidebar={onOpenSidebar} title="Chat" />}
+      <div className="flex-1 overflow-hidden">
+        <ConversationView />
       </div>
     </div>
   );
@@ -178,29 +299,121 @@ function WelcomeView() {
 
 function ChatLayout() {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const location = useLocation();
+
+  // Close sidebar on mobile when route changes (user selected something)
+  useEffect(() => {
+    if (isMobile && location.pathname !== '/chat') {
+      setIsSidebarOpen(false);
+    }
+  }, [location.pathname, isMobile]);
+
+  // Open sidebar by default on mobile when at /chat root
+  useEffect(() => {
+    if (isMobile && location.pathname === '/chat') {
+      setIsSidebarOpen(true);
+    }
+  }, [isMobile, location.pathname]);
+
+  // On desktop, sidebar is always visible
+  useEffect(() => {
+    if (!isMobile) {
+      setIsSidebarOpen(true);
+    }
+  }, [isMobile]);
+
+  const handleOpenSidebar = () => setIsSidebarOpen(true);
+  const handleCloseSidebar = () => setIsSidebarOpen(false);
+  const handleNavigate = () => {
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  };
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar - always visible */}
-      <Sidebar onCreateGroup={() => setIsCreateGroupOpen(true)} />
+    <div className="flex h-screen overflow-hidden relative">
+      {/* Backdrop overlay for mobile */}
+      {isMobile && isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+          onClick={handleCloseSidebar}
+        />
+      )}
+
+      {/* Sidebar - slides in/out on mobile */}
+      <div
+        className={`
+          ${isMobile ? 'fixed inset-y-0 left-0 z-50' : 'relative'}
+          transform transition-transform duration-300 ease-in-out
+          ${isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'}
+        `}
+      >
+        <Sidebar
+          onCreateGroup={() => setIsCreateGroupOpen(true)}
+          onNavigate={handleNavigate}
+          onCloseMobile={isMobile ? handleCloseSidebar : null}
+        />
+      </div>
 
       {/* Main content area - changes based on route */}
-      <main className="flex-1 flex flex-col bg-[var(--color-background)]">
+      <main className="flex-1 flex flex-col bg-[var(--color-background)] min-w-0">
         <Routes>
           {/* Default view - no conversation selected */}
-          <Route index element={<WelcomeView />} />
+          <Route
+            index
+            element={
+              <WelcomeView
+                onOpenSidebar={handleOpenSidebar}
+                isMobile={isMobile}
+              />
+            }
+          />
 
           {/* User Directory */}
-          <Route path="directory" element={<UserDirectory />} />
+          <Route
+            path="directory"
+            element={
+              <DirectoryWithHeader
+                onOpenSidebar={handleOpenSidebar}
+                isMobile={isMobile}
+              />
+            }
+          />
 
           {/* Invite Management */}
-          <Route path="invites" element={<InviteManagement />} />
+          <Route
+            path="invites"
+            element={
+              <InvitesWithHeader
+                onOpenSidebar={handleOpenSidebar}
+                isMobile={isMobile}
+              />
+            }
+          />
 
           {/* Direct message view */}
-          <Route path="dm/:userId" element={<ConversationView />} />
+          <Route
+            path="dm/:userId"
+            element={
+              <ConversationWithHeader
+                onOpenSidebar={handleOpenSidebar}
+                isMobile={isMobile}
+              />
+            }
+          />
 
           {/* Group chat view */}
-          <Route path="group/:groupId" element={<ConversationView />} />
+          <Route
+            path="group/:groupId"
+            element={
+              <ConversationWithHeader
+                onOpenSidebar={handleOpenSidebar}
+                isMobile={isMobile}
+              />
+            }
+          />
         </Routes>
       </main>
 
