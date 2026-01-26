@@ -299,7 +299,7 @@ export const leaveGroup = async (req, res, next) => {
 export const updateGroup = async (req, res, next) => {
   try {
     const { groupId } = req.params;
-    const { name, description } = req.body;
+    const { name, description, avatar } = req.body;
     const userId = req.user._id;
 
     const group = await Group.findById(groupId);
@@ -322,6 +322,27 @@ export const updateGroup = async (req, res, next) => {
     // Update fields
     if (name) group.name = name.trim();
     if (description !== undefined) group.description = description.trim();
+
+    // Handle avatar update
+    if (avatar !== undefined) {
+      // Validate avatar if provided (should be base64 data URL or null to remove)
+      if (avatar !== null && avatar !== '') {
+        if (!avatar.startsWith('data:image/')) {
+          return res.status(400).json({
+            status: 'error',
+            message: 'Invalid avatar format. Must be a base64 image.',
+          });
+        }
+        // Check size (roughly 2MB limit for base64)
+        if (avatar.length > 2 * 1024 * 1024) {
+          return res.status(400).json({
+            status: 'error',
+            message: 'Avatar image is too large. Maximum size is 2MB.',
+          });
+        }
+      }
+      group.avatar = avatar || null;
+    }
 
     await group.save();
 
