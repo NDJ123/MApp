@@ -983,8 +983,13 @@ function ConversationView() {
     e?.preventDefault();
 
     const content = newMessage.trim();
+    console.log('[DEBUG] handleSendMessage called', { content, hasFile: !!selectedFile, isSending, isConnected });
+
     // Need either content or file
-    if ((!content && !selectedFile) || isSending || !isConnected) return;
+    if ((!content && !selectedFile) || isSending || !isConnected) {
+      console.log('[DEBUG] Early return - conditions not met');
+      return;
+    }
 
     try {
       setIsSending(true);
