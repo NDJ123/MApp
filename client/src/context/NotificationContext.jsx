@@ -142,28 +142,29 @@ export function NotificationProvider({ children }) {
     // Handle DM messages
     const unsubscribeDM = subscribe('message:receive', (message) => {
       // Don't notify for own messages
-      if (message.sender._id === user._id) return;
+      const senderId = message.sender?._id || message.sender;
+      if (senderId === user._id || senderId === user._id?.toString()) return;
 
       // Don't notify if viewing this conversation
-      if (isViewingConversation('dm', message.sender._id)) return;
+      if (isViewingConversation('dm', senderId)) return;
 
-      const senderName = message.sender.displayName || message.sender.username;
+      const senderName = message.sender?.displayName || message.sender?.username || 'Someone';
       const body = message.messageType === 'file'
-        ? `${senderName} sent a file`
-        : message.content.length > 100
+        ? 'Sent a file'
+        : (message.content || '').length > 100
           ? message.content.substring(0, 100) + '...'
-          : message.content;
+          : (message.content || 'New message');
 
       const notification = showNotification(senderName, {
         body,
-        tag: `dm-${message.sender._id}`,
-        data: { type: 'dm', userId: message.sender._id },
+        tag: `dm-${senderId}`,
+        data: { type: 'dm', userId: senderId },
       });
 
       if (notification) {
         notification.onclick = () => {
           window.focus();
-          navigate(`/chat/dm/${message.sender._id}`);
+          navigate(`/chat/dm/${senderId}`);
           notification.close();
         };
       }
@@ -172,29 +173,31 @@ export function NotificationProvider({ children }) {
     // Handle group messages
     const unsubscribeGroup = subscribe('group:message:receive', (message) => {
       // Don't notify for own messages
-      if (message.sender._id === user._id) return;
+      const senderId = message.sender?._id || message.sender;
+      if (senderId === user._id || senderId === user._id?.toString()) return;
 
       // Don't notify if viewing this group
-      if (isViewingConversation('group', message.group._id)) return;
+      const groupId = message.group?._id || message.group;
+      if (isViewingConversation('group', groupId)) return;
 
-      const senderName = message.sender.displayName || message.sender.username;
-      const groupName = message.group.name;
+      const senderName = message.sender?.displayName || message.sender?.username || 'Someone';
+      const groupName = message.group?.name || 'Group';
       const body = message.messageType === 'file'
-        ? `${senderName} sent a file`
-        : message.content.length > 100
+        ? 'Sent a file'
+        : (message.content || '').length > 100
           ? message.content.substring(0, 100) + '...'
-          : message.content;
+          : (message.content || 'New message');
 
-      const notification = showNotification(`${groupName}`, {
+      const notification = showNotification(groupName, {
         body: `${senderName}: ${body}`,
-        tag: `group-${message.group._id}`,
-        data: { type: 'group', groupId: message.group._id },
+        tag: `group-${groupId}`,
+        data: { type: 'group', groupId: groupId },
       });
 
       if (notification) {
         notification.onclick = () => {
           window.focus();
-          navigate(`/chat/group/${message.group._id}`);
+          navigate(`/chat/group/${groupId}`);
           notification.close();
         };
       }
