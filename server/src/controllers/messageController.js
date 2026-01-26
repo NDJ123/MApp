@@ -52,6 +52,14 @@ export const getDMMessages = async (req, res, next) => {
       .limit(limit)
       .populate('sender', 'username displayName avatar')
       .populate('reactions.user', 'username displayName')
+      .populate({
+        path: 'replyTo',
+        select: 'content sender messageType',
+        populate: {
+          path: 'sender',
+          select: 'username displayName'
+        }
+      })
       .lean();
 
     // Reverse to show oldest first in the UI
@@ -196,6 +204,14 @@ export const getGroupMessages = async (req, res, next) => {
       .limit(limit)
       .populate('sender', 'username displayName avatar')
       .populate('reactions.user', 'username displayName')
+      .populate({
+        path: 'replyTo',
+        select: 'content sender messageType',
+        populate: {
+          path: 'sender',
+          select: 'username displayName'
+        }
+      })
       .lean();
 
     // Reverse to show oldest first in the UI

@@ -89,13 +89,13 @@ export const setupSocketHandlers = (io) => {
     // -------------------------------------------------------------------------
     // SEND MESSAGE
     // -------------------------------------------------------------------------
-    // Client sends: { recipientId, content }
+    // Client sends: { recipientId, content, file?, replyTo? }
     // Server saves to DB and forwards to recipient
     // -------------------------------------------------------------------------
 
     socket.on('message:send', async (data, callback) => {
       try {
-        const { recipientId, content, file } = data;
+        const { recipientId, content, file, replyTo } = data;
 
         // Validate - need either content or file
         if (!recipientId) {
@@ -125,6 +125,16 @@ export const setupSocketHandlers = (io) => {
         // Generate conversation ID
         const conversationId = Message.getDMConversationId(user._id, recipientId);
 
+        // Validate replyTo if provided
+        let replyToMessage = null;
+        if (replyTo) {
+          replyToMessage = await Message.findById(replyTo)
+            .populate('sender', 'username displayName');
+          if (!replyToMessage || replyToMessage.conversationId !== conversationId) {
+            return callback?.({ error: 'Invalid reply target' });
+          }
+        }
+
         // Determine message type
         let messageType = 'text';
         if (file) {
@@ -144,6 +154,7 @@ export const setupSocketHandlers = (io) => {
             size: file.size,
             mimeType: file.mimeType,
           } : undefined,
+          replyTo: replyTo || null,
           readBy: [{ user: user._id, readAt: new Date() }], // Sender has read it
         });
 
@@ -158,6 +169,12 @@ export const setupSocketHandlers = (io) => {
           content: message.content,
           messageType: message.messageType,
           file: message.file,
+          replyTo: replyToMessage ? {
+            _id: replyToMessage._id.toString(),
+            content: replyToMessage.content,
+            sender: replyToMessage.sender,
+            messageType: replyToMessage.messageType,
+          } : null,
           createdAt: message.createdAt,
         };
 
@@ -271,13 +288,13 @@ export const setupSocketHandlers = (io) => {
     // -------------------------------------------------------------------------
     // SEND GROUP MESSAGE
     // -------------------------------------------------------------------------
-    // Client sends: { groupId, content }
+    // Client sends: { groupId, content, file?, replyTo? }
     // Server saves to DB and broadcasts to all group members
     // -------------------------------------------------------------------------
 
     socket.on('group:message:send', async (data, callback) => {
       try {
-        const { groupId, content, file } = data;
+        const { groupId, content, file, replyTo } = data;
 
         // Validate - need either content or file
         if (!groupId) {
@@ -307,14 +324,26 @@ export const setupSocketHandlers = (io) => {
           }
         }
 
+        // Create message with group conversation ID
+        const conversationId = `group:${groupId}`;
+
+        // Validate replyTo if provided
+        let replyToMessage = null;
+        if (replyTo) {
+          replyToMessage = await Message.findById(replyTo)
+            .populate('sender', 'username displayName');
+          if (!replyToMessage || replyToMessage.conversationId !== conversationId) {
+            return callback?.({ error: 'Invalid reply target' });
+          }
+        }
+
         // Determine message type
         let messageType = 'text';
         if (file) {
           messageType = file.mimeType.startsWith('image/') ? 'image' : 'file';
         }
 
-        // Create message with group conversation ID
-        const conversationId = `group:${groupId}`;
+        // Create message
         const message = await Message.create({
           sender: user._id,
           group: groupId,
@@ -327,6 +356,7 @@ export const setupSocketHandlers = (io) => {
             size: file.size,
             mimeType: file.mimeType,
           } : undefined,
+          replyTo: replyTo || null,
           readBy: [{ user: user._id, readAt: new Date() }],
         });
 
@@ -341,6 +371,12 @@ export const setupSocketHandlers = (io) => {
           content: message.content,
           messageType: message.messageType,
           file: message.file,
+          replyTo: replyToMessage ? {
+            _id: replyToMessage._id.toString(),
+            content: replyToMessage.content,
+            sender: replyToMessage.sender,
+            messageType: replyToMessage.messageType,
+          } : null,
           createdAt: message.createdAt,
         };
 

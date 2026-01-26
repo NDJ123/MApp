@@ -102,7 +102,7 @@ export function SocketProvider({ children }) {
   // SEND MESSAGE
   // ---------------------------------------------------------------------------
 
-  const sendMessage = useCallback((recipientId, content, file = null) => {
+  const sendMessage = useCallback((recipientId, content, file = null, replyTo = null) => {
     return new Promise((resolve, reject) => {
       if (!socket || !isConnected) {
         reject(new Error('Not connected'));
@@ -112,6 +112,9 @@ export function SocketProvider({ children }) {
       const data = { recipientId, content };
       if (file) {
         data.file = file;
+      }
+      if (replyTo) {
+        data.replyTo = replyTo;
       }
 
       socket.emit('message:send', data, (response) => {
@@ -128,7 +131,7 @@ export function SocketProvider({ children }) {
   // SEND GROUP MESSAGE WITH FILE
   // ---------------------------------------------------------------------------
 
-  const sendGroupMessage = useCallback((groupId, content, file = null) => {
+  const sendGroupMessage = useCallback((groupId, content, file = null, replyTo = null) => {
     return new Promise((resolve, reject) => {
       if (!socket || !isConnected) {
         reject(new Error('Not connected'));
@@ -138,6 +141,9 @@ export function SocketProvider({ children }) {
       const data = { groupId, content };
       if (file) {
         data.file = file;
+      }
+      if (replyTo) {
+        data.replyTo = replyTo;
       }
 
       socket.emit('group:message:send', data, (response) => {

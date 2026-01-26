@@ -150,6 +150,40 @@ function LinkPreview({ preview, isOwnMessage }) {
 }
 
 // =============================================================================
+// REPLY PREVIEW (shown in message bubble when replying to another message)
+// =============================================================================
+
+function ReplyPreview({ replyTo, isOwnMessage }) {
+  if (!replyTo) return null;
+
+  const senderName = replyTo.sender?.displayName || replyTo.sender?.username || 'Unknown';
+  const previewText = replyTo.messageType === 'text'
+    ? (replyTo.content?.slice(0, 100) + (replyTo.content?.length > 100 ? '...' : ''))
+    : replyTo.messageType === 'image'
+      ? '📷 Image'
+      : '📎 File';
+
+  return (
+    <div className={`mb-2 pl-3 border-l-2 ${
+      isOwnMessage
+        ? 'border-white/50'
+        : 'border-[var(--color-primary)]'
+    }`}>
+      <p className={`text-xs font-medium ${
+        isOwnMessage ? 'text-white/80' : 'text-[var(--color-primary)]'
+      }`}>
+        {senderName}
+      </p>
+      <p className={`text-xs truncate ${
+        isOwnMessage ? 'text-white/60' : 'text-[var(--color-text-secondary)]'
+      }`}>
+        {previewText}
+      </p>
+    </div>
+  );
+}
+
+// =============================================================================
 // FILE ATTACHMENT DISPLAY
 // =============================================================================
 
@@ -210,7 +244,7 @@ function FileAttachment({ file, isOwnMessage }) {
 // MESSAGE BUBBLE COMPONENT
 // =============================================================================
 
-function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction, onEditMessage, onDeleteMessage }) {
+function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction, onEditMessage, onDeleteMessage, onReply }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -336,6 +370,15 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
                     />
                   )}
                 </div>
+                <button
+                  onClick={() => onReply(message)}
+                  className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-xs transition-colors"
+                  title="Reply"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                </button>
               </div>
             )}
             {isEdited && (
@@ -344,6 +387,9 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
             <span className="text-xs text-[var(--color-text-tertiary)]">{time}</span>
           </div>
           <div className="bg-[var(--color-primary)] text-white rounded-lg px-4 py-2">
+            {message.replyTo && (
+              <ReplyPreview replyTo={message.replyTo} isOwnMessage={true} />
+            )}
             {hasFile && (
               <div className={hasContent ? 'mb-2' : ''}>
                 <FileAttachment file={message.file} isOwnMessage={true} />
@@ -403,12 +449,8 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
 
   return (
     <div
-      className="flex gap-3 mb-3"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => {
-        setShowActions(false);
-        setShowEmojiPicker(false);
-      }}
+      className="flex gap-3 mb-3 group"
+      onMouseLeave={() => setShowEmojiPicker(false)}
     >
       {showAvatar ? (
         <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex-shrink-0 flex items-center justify-center text-white text-sm font-medium">
@@ -439,6 +481,9 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
         )}
         <div className="relative">
           <div className="bg-[var(--color-surface)] rounded-lg px-4 py-2">
+            {message.replyTo && (
+              <ReplyPreview replyTo={message.replyTo} isOwnMessage={false} />
+            )}
             {hasFile && (
               <div className={hasContent ? 'mb-2' : ''}>
                 <FileAttachment file={message.file} isOwnMessage={false} />
@@ -451,23 +496,30 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
               <LinkPreview preview={message.linkPreview} isOwnMessage={false} />
             )}
           </div>
-          {/* Reaction button */}
-          {showActions && (
-            <div className="absolute -right-8 top-1/2 -translate-y-1/2">
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
-              >
-                😊
-              </button>
-              {showEmojiPicker && (
-                <EmojiPicker
-                  onSelect={(emoji) => handleReactionClick(emoji)}
-                  onClose={() => setShowEmojiPicker(false)}
-                />
-              )}
-            </div>
-          )}
+          {/* Action buttons */}
+          <div className="absolute -right-16 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
+            >
+              😊
+            </button>
+            {showEmojiPicker && (
+              <EmojiPicker
+                onSelect={(emoji) => handleReactionClick(emoji)}
+                onClose={() => setShowEmojiPicker(false)}
+              />
+            )}
+            <button
+              onClick={() => onReply(message)}
+              className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-xs transition-colors"
+              title="Reply"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+            </button>
+          </div>
         </div>
         {/* Reactions display */}
         <ReactionsDisplay
@@ -505,6 +557,7 @@ function ConversationView() {
   const [typingUsers, setTypingUsers] = useState([]);  // For group: track multiple typing users
   const [selectedFile, setSelectedFile] = useState(null);  // For file uploads
   const [filePreview, setFilePreview] = useState(null);    // Preview URL for images
+  const [replyingTo, setReplyingTo] = useState(null);      // Message being replied to
 
   // Refs
   const messagesEndRef = useRef(null);
@@ -777,13 +830,14 @@ function ConversationView() {
 
     try {
       setIsSending(true);
+      const replyToId = replyingTo?._id || null;
 
       if (isGroupChat) {
         // Stop typing indicator
         socket?.emit('group:typing:stop', { groupId });
 
-        // Send group message via socket with file support
-        const message = await sendGroupMessage(groupId, content, selectedFile);
+        // Send group message via socket with file and reply support
+        const message = await sendGroupMessage(groupId, content, selectedFile, replyToId);
         // Note: The message will be added via the group:message:receive event
 
         // If message contains URL, schedule fallback fetch
@@ -794,8 +848,8 @@ function ConversationView() {
         // Stop typing indicator
         stopTyping(userId);
 
-        // Send DM via socket with file support
-        const message = await sendMessage(userId, content, selectedFile);
+        // Send DM via socket with file and reply support
+        const message = await sendMessage(userId, content, selectedFile, replyToId);
 
         // Add to local state for DM
         setMessages(prev => [...prev, message]);
@@ -808,6 +862,7 @@ function ConversationView() {
 
       setNewMessage('');
       clearSelectedFile();
+      setReplyingTo(null);
     } catch (err) {
       console.error('Failed to send message:', err);
       setError('Failed to send message. Please try again.');
@@ -1034,6 +1089,7 @@ function ConversationView() {
                   onToggleReaction={handleToggleReaction}
                   onEditMessage={handleEditMessage}
                   onDeleteMessage={handleDeleteMessage}
+                  onReply={setReplyingTo}
                 />
               );
             })}
@@ -1046,6 +1102,35 @@ function ConversationView() {
       {!isConnected && (
         <div className="px-4 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm text-center">
           Connecting to server...
+        </div>
+      )}
+
+      {/* Reply preview */}
+      {replyingTo && (
+        <div className="px-4 pt-3 border-t border-[var(--color-border)]">
+          <div className="flex items-center gap-3 p-3 bg-[var(--color-surface)] rounded-lg border-l-4 border-[var(--color-primary)]">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-[var(--color-primary)] font-medium">
+                Replying to {replyingTo.sender?.displayName || replyingTo.sender?.username}
+              </p>
+              <p className="text-sm text-[var(--color-text-secondary)] truncate">
+                {replyingTo.messageType === 'text'
+                  ? replyingTo.content
+                  : replyingTo.messageType === 'image'
+                    ? '📷 Image'
+                    : '📎 File'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+              className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full transition-colors"
+            >
+              <svg className="w-5 h-5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
@@ -1084,7 +1169,7 @@ function ConversationView() {
       )}
 
       {/* Message input */}
-      <div className={`p-4 ${selectedFile ? '' : 'border-t border-[var(--color-border)]'} flex-shrink-0`}>
+      <div className={`p-4 ${selectedFile || replyingTo ? '' : 'border-t border-[var(--color-border)]'} flex-shrink-0`}>
         <form onSubmit={handleSendMessage} className="flex items-end gap-2">
           {/* File upload button */}
           <input
