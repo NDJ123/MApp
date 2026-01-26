@@ -444,10 +444,65 @@ export const setupSocketHandlers = (io) => {
 
         callback?.({ success: true, reactions: updatedMessage.reactions });
 
-        console.log(`[Socket] ${user.username} toggled ${emoji} on message ${messageId}`);
       } catch (error) {
         console.error('[Socket] Reaction toggle error:', error);
         callback?.({ error: 'Failed to toggle reaction' });
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // EDIT MESSAGE
+    // -------------------------------------------------------------------------
+    // Allow users to edit their own messages
+    // -------------------------------------------------------------------------
+
+    socket.on('message:edit', async (data, callback) => {
+      try {
+        const { messageId, content } = data;
+
+        if (!messageId || !content?.trim()) {
+          return callback?.({ error: 'Message ID and content are required' });
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          return callback?.({ error: 'Message not found' });
+        }
+
+        // Only the sender can edit their own messages
+        if (message.sender.toString() !== user._id.toString()) {
+          return callback?.({ error: 'You can only edit your own messages' });
+        }
+
+        // Can't edit deleted messages
+        if (message.deleted) {
+          return callback?.({ error: 'Cannot edit a deleted message' });
+        }
+
+        // Update the message
+        message.content = content.trim();
+        message.editedAt = new Date();
+        await message.save();
+
+        // Prepare the update data
+        const editData = {
+          messageId: message._id.toString(),
+          content: message.content,
+          editedAt: message.editedAt,
+        };
+
+        // Broadcast to appropriate recipients
+        if (message.group) {
+          io.to(`group:${message.group}`).emit('message:edited', editData);
+        } else {
+          io.to(message.sender.toString()).emit('message:edited', editData);
+          io.to(message.recipient.toString()).emit('message:edited', editData);
+        }
+
+        callback?.({ success: true, message: editData });
+      } catch (error) {
+        console.error('[Socket] Message edit error:', error);
+        callback?.({ error: 'Failed to edit message' });
       }
     });
 

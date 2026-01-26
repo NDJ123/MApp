@@ -141,6 +141,12 @@ const messageSchema = new mongoose.Schema(
       default: false,
     },
 
+    // Track when message was edited
+    editedAt: {
+      type: Date,
+      default: null,
+    },
+
     // Optional: for replies/threads
     replyTo: {
       type: mongoose.Schema.Types.ObjectId,

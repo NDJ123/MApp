@@ -210,9 +210,11 @@ function FileAttachment({ file, isOwnMessage }) {
 // MESSAGE BUBBLE COMPONENT
 // =============================================================================
 
-function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction }) {
+function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction, onEditMessage }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showReactionButton, setShowReactionButton] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content || '');
 
   const initial = (message.sender?.displayName || message.sender?.username || '?')[0].toUpperCase();
   const time = new Date(message.createdAt).toLocaleTimeString([], {
@@ -224,22 +226,51 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
     onToggleReaction(message._id, emoji);
   };
 
+  const handleEditSubmit = async () => {
+    if (!editContent.trim() || editContent.trim() === message.content) {
+      setIsEditing(false);
+      setEditContent(message.content || '');
+      return;
+    }
+    try {
+      await onEditMessage(message._id, editContent.trim());
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Failed to edit message:', err);
+    }
+  };
+
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleEditSubmit();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditContent(message.content || '');
+    }
+  };
+
   const hasFile = message.file && message.file.url;
   const hasContent = message.content && message.content.trim();
   const hasLinkPreview = message.linkPreview && message.linkPreview.url;
+  const isEdited = !!message.editedAt;
+  const canEdit = isOwnMessage && message.messageType === 'text' && hasContent;
 
   if (isOwnMessage) {
     return (
       <div
         className="flex justify-end mb-3 relative"
-        onMouseEnter={() => setShowReactionButton(true)}
+        onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => {
-          setShowReactionButton(false);
+          setShowActions(false);
           setShowEmojiPicker(false);
         }}
       >
         <div className="max-w-[70%]">
           <div className="flex items-baseline gap-2 justify-end mb-1">
+            {isEdited && (
+              <span className="text-xs text-[var(--color-text-tertiary)] italic">edited</span>
+            )}
             <span className="text-xs text-[var(--color-text-tertiary)]">{time}</span>
           </div>
           <div className="relative">
@@ -249,16 +280,59 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
                   <FileAttachment file={message.file} isOwnMessage={true} />
                 </div>
               )}
-              {hasContent && (
-                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              {isEditing ? (
+                <div>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    onKeyDown={handleEditKeyDown}
+                    className="w-full bg-white/20 text-white rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-white/50"
+                    rows={2}
+                    autoFocus
+                  />
+                  <div className="flex gap-2 mt-2 text-xs">
+                    <button
+                      onClick={handleEditSubmit}
+                      className="px-2 py-1 bg-white/20 rounded hover:bg-white/30"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditContent(message.content || '');
+                      }}
+                      className="px-2 py-1 bg-white/10 rounded hover:bg-white/20"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {hasContent && (
+                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  )}
+                </>
               )}
-              {hasLinkPreview && (
+              {hasLinkPreview && !isEditing && (
                 <LinkPreview preview={message.linkPreview} isOwnMessage={true} />
               )}
             </div>
-            {/* Reaction button */}
-            {showReactionButton && (
-              <div className="absolute -left-8 top-1/2 -translate-y-1/2">
+            {/* Action buttons */}
+            {showActions && !isEditing && (
+              <div className="absolute -left-16 top-1/2 -translate-y-1/2 flex gap-1">
+                {canEdit && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-xs transition-colors"
+                    title="Edit message"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
@@ -290,9 +364,9 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
   return (
     <div
       className="flex gap-3 mb-3"
-      onMouseEnter={() => setShowReactionButton(true)}
+      onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => {
-        setShowReactionButton(false);
+        setShowActions(false);
         setShowEmojiPicker(false);
       }}
     >
@@ -318,6 +392,9 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
               {message.sender?.displayName || message.sender?.username}
             </span>
             <span className="text-xs text-[var(--color-text-tertiary)]">{time}</span>
+            {isEdited && (
+              <span className="text-xs text-[var(--color-text-tertiary)] italic">edited</span>
+            )}
           </div>
         )}
         <div className="relative">
@@ -335,7 +412,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
             )}
           </div>
           {/* Reaction button */}
-          {showReactionButton && (
+          {showActions && (
             <div className="absolute -right-8 top-1/2 -translate-y-1/2">
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -371,7 +448,7 @@ function ConversationView() {
   const { userId, groupId } = useParams();
   const location = useLocation();
   const { user: currentUser } = useAuth();
-  const { socket, sendMessage, sendGroupMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction } = useSocket();
+  const { socket, sendMessage, sendGroupMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction, editMessage } = useSocket();
 
   // Determine conversation type
   const isGroupChat = location.pathname.includes('/group/');
@@ -545,6 +622,15 @@ function ConversationView() {
       subscribe('message:linkPreview', ({ messageId, linkPreview }) => {
         setMessages(prev => prev.map(msg =>
           msg._id === messageId ? { ...msg, linkPreview } : msg
+        ));
+      })
+    );
+
+    // Listen for message edits
+    unsubscribers.push(
+      subscribe('message:edited', ({ messageId, content, editedAt }) => {
+        setMessages(prev => prev.map(msg =>
+          msg._id === messageId ? { ...msg, content, editedAt } : msg
         ));
       })
     );
@@ -743,6 +829,20 @@ function ConversationView() {
   };
 
   // ---------------------------------------------------------------------------
+  // HANDLE EDIT MESSAGE
+  // ---------------------------------------------------------------------------
+
+  const handleEditMessage = async (messageId, content) => {
+    try {
+      await editMessage(messageId, content);
+      // The edit update will come through the socket event
+    } catch (err) {
+      console.error('Failed to edit message:', err);
+      throw err; // Re-throw so MessageBubble can handle it
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // RENDER
   // ---------------------------------------------------------------------------
 
@@ -872,6 +972,7 @@ function ConversationView() {
                   showAvatar={showAvatar}
                   currentUserId={currentUser._id}
                   onToggleReaction={handleToggleReaction}
+                  onEditMessage={handleEditMessage}
                 />
               );
             })}

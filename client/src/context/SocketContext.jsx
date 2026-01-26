@@ -198,6 +198,27 @@ export function SocketProvider({ children }) {
   }, [socket, isConnected]);
 
   // ---------------------------------------------------------------------------
+  // EDIT MESSAGE
+  // ---------------------------------------------------------------------------
+
+  const editMessage = useCallback((messageId, content) => {
+    return new Promise((resolve, reject) => {
+      if (!socket || !isConnected) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socket.emit('message:edit', { messageId, content }, (response) => {
+        if (response.error) {
+          reject(new Error(response.error));
+        } else {
+          resolve(response.message);
+        }
+      });
+    });
+  }, [socket, isConnected]);
+
+  // ---------------------------------------------------------------------------
   // CHECK IF USER IS ONLINE
   // ---------------------------------------------------------------------------
 
@@ -230,6 +251,7 @@ export function SocketProvider({ children }) {
     stopTyping,
     markAsRead,
     toggleReaction,
+    editMessage,
     isUserOnline,
     subscribe,
   };
