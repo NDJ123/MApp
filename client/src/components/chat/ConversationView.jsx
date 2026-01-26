@@ -614,34 +614,53 @@ function ConversationView() {
   };
 
   // Fallback: re-fetch messages to get link preview if socket event fails
-  const fetchLinkPreviewFallback = (messageId, delay = 3000) => {
+  // Retries multiple times with increasing delays
+  const fetchLinkPreviewFallback = (messageId, attempt = 1) => {
+    const delays = [3000, 5000, 8000]; // Retry at 3s, 5s, 8s
+    if (attempt > delays.length) {
+      console.log('[ConversationView] Fallback: max retries reached for', messageId);
+      return;
+    }
+
+    const delay = delays[attempt - 1];
+    console.log(`[ConversationView] Scheduling fallback attempt ${attempt} for ${messageId} in ${delay}ms`);
+
     setTimeout(async () => {
       try {
         // Use ref to check current state (avoid stale closure)
-        const currentMsg = messagesRef.current.find(m => m._id === messageId);
+        const currentMsg = messagesRef.current.find(m => String(m._id) === String(messageId));
         if (currentMsg?.linkPreview) {
           console.log('[ConversationView] Link preview already present, skipping fallback');
           return;
         }
 
-        console.log('[ConversationView] Fallback: fetching messages for link preview');
+        console.log(`[ConversationView] Fallback attempt ${attempt}: fetching messages for ${messageId}`);
         const response = isGroupChat
           ? await messageAPI.getGroupMessages(groupId)
           : await messageAPI.getDMMessages(userId);
 
         const fetchedMessages = response.data.data.messages;
-        const updatedMsg = fetchedMessages.find(m => m._id === messageId);
+        console.log('[ConversationView] Fetched message IDs:', fetchedMessages.map(m => m._id));
+
+        // Use string comparison to be safe
+        const updatedMsg = fetchedMessages.find(m => String(m._id) === String(messageId));
+        console.log('[ConversationView] Looking for:', messageId, 'Found:', updatedMsg?._id);
+        console.log('[ConversationView] Has linkPreview:', !!updatedMsg?.linkPreview);
 
         if (updatedMsg?.linkPreview) {
           console.log('[ConversationView] Fallback: found link preview, updating state');
           setMessages(prev => prev.map(msg =>
-            msg._id === messageId ? { ...msg, linkPreview: updatedMsg.linkPreview } : msg
+            String(msg._id) === String(messageId) ? { ...msg, linkPreview: updatedMsg.linkPreview } : msg
           ));
         } else {
-          console.log('[ConversationView] Fallback: no link preview found yet');
+          console.log('[ConversationView] Fallback: no link preview found, scheduling retry');
+          // Schedule next attempt
+          fetchLinkPreviewFallback(messageId, attempt + 1);
         }
       } catch (err) {
         console.error('[ConversationView] Fallback fetch error:', err);
+        // Still retry on error
+        fetchLinkPreviewFallback(messageId, attempt + 1);
       }
     }, delay);
   };

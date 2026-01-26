@@ -174,26 +174,43 @@ export const setupSocketHandlers = (io) => {
           const msgId = message._id.toString();
           const senderRoom = user._id.toString();
           const recipientRoom = recipientId.toString();
+          const timestamp = new Date().toISOString();
 
-          console.log(`[Socket] Starting link preview for msg=${msgId}, content="${content.substring(0, 50)}..."`);
+          console.log(`[Socket ${timestamp}] Starting link preview for msg=${msgId}`);
+          console.log(`[Socket ${timestamp}] Content: "${content}"`);
 
           getLinkPreviewForText(content).then(async (linkPreview) => {
-            console.log(`[Socket] Preview result for ${msgId}:`, linkPreview ? 'FOUND' : 'NULL');
+            const ts2 = new Date().toISOString();
+            console.log(`[Socket ${ts2}] Preview result for ${msgId}:`, linkPreview ? 'FOUND' : 'NULL');
+
             if (linkPreview) {
-              await Message.findByIdAndUpdate(message._id, { linkPreview });
-              console.log(`[Socket] DB updated for ${msgId}`);
+              // Update database
+              const updated = await Message.findByIdAndUpdate(
+                message._id,
+                { linkPreview },
+                { new: true }
+              );
+              console.log(`[Socket ${ts2}] DB updated for ${msgId}, has preview:`, !!updated?.linkPreview);
+
+              // Verify the update worked
+              const verify = await Message.findById(message._id);
+              console.log(`[Socket ${ts2}] Verify DB - has linkPreview:`, !!verify?.linkPreview);
 
               const previewData = { messageId: msgId, linkPreview };
-              console.log(`[Socket] Emitting to rooms: sender=${senderRoom}, recipient=${recipientRoom}`);
+              console.log(`[Socket ${ts2}] Emitting to sender=${senderRoom}, recipient=${recipientRoom}`);
 
               io.to(recipientRoom).emit('message:linkPreview', previewData);
               io.to(senderRoom).emit('message:linkPreview', previewData);
 
-              console.log(`[Socket] Emitted link preview for ${msgId}`);
+              console.log(`[Socket ${ts2}] DONE: Link preview emitted for ${msgId}`);
+            } else {
+              console.log(`[Socket ${ts2}] No preview found for ${msgId}`);
             }
           }).catch(err => {
-            console.error('[Socket] Link preview error:', msgId, err.message);
+            console.error(`[Socket] Link preview error for ${msgId}:`, err.message, err.stack);
           });
+        } else {
+          console.log(`[Socket] Skipping link preview: messageType=${messageType}, hasContent=${!!content?.trim()}`);
         }
       } catch (error) {
         console.error('[Socket] Send message error:', error);
