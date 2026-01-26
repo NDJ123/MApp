@@ -219,6 +219,27 @@ export function SocketProvider({ children }) {
   }, [socket, isConnected]);
 
   // ---------------------------------------------------------------------------
+  // DELETE MESSAGE
+  // ---------------------------------------------------------------------------
+
+  const deleteMessage = useCallback((messageId) => {
+    return new Promise((resolve, reject) => {
+      if (!socket || !isConnected) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socket.emit('message:delete', { messageId }, (response) => {
+        if (response.error) {
+          reject(new Error(response.error));
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }, [socket, isConnected]);
+
+  // ---------------------------------------------------------------------------
   // CHECK IF USER IS ONLINE
   // ---------------------------------------------------------------------------
 
@@ -252,6 +273,7 @@ export function SocketProvider({ children }) {
     markAsRead,
     toggleReaction,
     editMessage,
+    deleteMessage,
     isUserOnline,
     subscribe,
   };

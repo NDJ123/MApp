@@ -210,11 +210,12 @@ function FileAttachment({ file, isOwnMessage }) {
 // MESSAGE BUBBLE COMPONENT
 // =============================================================================
 
-function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction, onEditMessage }) {
+function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction, onEditMessage, onDeleteMessage }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content || '');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const initial = (message.sender?.displayName || message.sender?.username || '?')[0].toUpperCase();
   const time = new Date(message.createdAt).toLocaleTimeString([], {
@@ -256,12 +257,22 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
   const isEdited = !!message.editedAt;
   // Allow editing text messages that have content and no file attachment
   const canEdit = isOwnMessage && !hasFile && !!hasContent;
+  // Allow deleting own messages
+  const canDelete = isOwnMessage;
+
+  const handleDelete = () => {
+    onDeleteMessage(message._id);
+    setShowDeleteConfirm(false);
+  };
 
   if (isOwnMessage) {
     return (
       <div
         className="flex justify-end mb-3 group"
-        onMouseLeave={() => setShowEmojiPicker(false)}
+        onMouseLeave={() => {
+          setShowEmojiPicker(false);
+          setShowDeleteConfirm(false);
+        }}
       >
         <div className="max-w-[70%]">
           <div className="flex items-center gap-2 justify-end mb-1">
@@ -278,6 +289,38 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
                   </button>
+                )}
+                {canDelete && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-red-100 hover:border-red-300 hover:text-red-600 text-xs transition-colors"
+                      title="Delete message"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                    {showDeleteConfirm && (
+                      <div className="absolute right-0 top-full mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg p-2 z-50 whitespace-nowrap">
+                        <p className="text-xs text-[var(--color-text-secondary)] mb-2">Delete message?</p>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={handleDelete}
+                            className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                          >
+                            Delete
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="px-2 py-1 text-xs bg-[var(--color-surface-hover)] rounded hover:bg-[var(--color-border)]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
                 <div className="relative">
                   <button
@@ -445,7 +488,7 @@ function ConversationView() {
   const { userId, groupId } = useParams();
   const location = useLocation();
   const { user: currentUser } = useAuth();
-  const { socket, sendMessage, sendGroupMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction, editMessage } = useSocket();
+  const { socket, sendMessage, sendGroupMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction, editMessage, deleteMessage } = useSocket();
 
   // Determine conversation type
   const isGroupChat = location.pathname.includes('/group/');
@@ -629,6 +672,13 @@ function ConversationView() {
         setMessages(prev => prev.map(msg =>
           msg._id === messageId ? { ...msg, content, editedAt } : msg
         ));
+      })
+    );
+
+    // Listen for message deletions
+    unsubscribers.push(
+      subscribe('message:deleted', ({ messageId }) => {
+        setMessages(prev => prev.filter(msg => msg._id !== messageId));
       })
     );
 
@@ -840,6 +890,19 @@ function ConversationView() {
   };
 
   // ---------------------------------------------------------------------------
+  // HANDLE DELETE MESSAGE
+  // ---------------------------------------------------------------------------
+
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await deleteMessage(messageId);
+      // The delete update will come through the socket event
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // RENDER
   // ---------------------------------------------------------------------------
 
@@ -970,6 +1033,7 @@ function ConversationView() {
                   currentUserId={currentUser._id}
                   onToggleReaction={handleToggleReaction}
                   onEditMessage={handleEditMessage}
+                  onDeleteMessage={handleDeleteMessage}
                 />
               );
             })}

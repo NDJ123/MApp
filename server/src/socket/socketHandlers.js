@@ -507,6 +507,59 @@ export const setupSocketHandlers = (io) => {
     });
 
     // -------------------------------------------------------------------------
+    // DELETE MESSAGE
+    // -------------------------------------------------------------------------
+    // Allow users to delete their own messages (soft delete)
+    // -------------------------------------------------------------------------
+
+    socket.on('message:delete', async (data, callback) => {
+      try {
+        const { messageId } = data;
+
+        if (!messageId) {
+          return callback?.({ error: 'Message ID is required' });
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          return callback?.({ error: 'Message not found' });
+        }
+
+        // Only the sender can delete their own messages
+        if (message.sender.toString() !== user._id.toString()) {
+          return callback?.({ error: 'You can only delete your own messages' });
+        }
+
+        // Already deleted
+        if (message.deleted) {
+          return callback?.({ error: 'Message already deleted' });
+        }
+
+        // Soft delete the message
+        message.deleted = true;
+        await message.save();
+
+        // Prepare the delete data
+        const deleteData = {
+          messageId: message._id.toString(),
+        };
+
+        // Broadcast to appropriate recipients
+        if (message.group) {
+          io.to(`group:${message.group}`).emit('message:deleted', deleteData);
+        } else {
+          io.to(message.sender.toString()).emit('message:deleted', deleteData);
+          io.to(message.recipient.toString()).emit('message:deleted', deleteData);
+        }
+
+        callback?.({ success: true });
+      } catch (error) {
+        console.error('[Socket] Message delete error:', error);
+        callback?.({ error: 'Failed to delete message' });
+      }
+    });
+
+    // -------------------------------------------------------------------------
     // DISCONNECT
     // -------------------------------------------------------------------------
 
