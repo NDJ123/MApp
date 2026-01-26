@@ -366,7 +366,7 @@ export const setupSocketHandlers = (io) => {
         const messageData = {
           _id: message._id.toString(), // Ensure string for consistency
           sender: message.sender,
-          group: groupId,
+          group: { _id: groupId, name: group.name },
           conversationId: message.conversationId,
           content: message.content,
           messageType: message.messageType,
