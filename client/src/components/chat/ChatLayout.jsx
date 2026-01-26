@@ -313,9 +313,9 @@ function ConversationWithHeader({ onOpenSidebar, isMobile }) {
 
 function ProfileWithHeader({ onOpenSidebar, isMobile }) {
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
       {isMobile && <MobileHeader onOpenSidebar={onOpenSidebar} title="Profile Settings" />}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto">
         <ProfileSettings />
       </div>
     </div>
