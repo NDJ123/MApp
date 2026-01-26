@@ -5,6 +5,8 @@
 // for generating link previews in chat messages.
 // =============================================================================
 
+import fetch from 'node-fetch';
+
 // Regular expression to match URLs in text
 const URL_REGEX = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/gi;
 
@@ -144,32 +146,28 @@ export async function fetchLinkPreview(url) {
         'Accept-Language': 'en-US,en;q=0.5',
       },
       redirect: 'follow',
+      size: 50 * 1024, // Limit response size to 50KB (node-fetch option)
     });
 
     console.log('[LinkPreview] Response status:', response.status);
     clearTimeout(timeout);
 
-    // Check if response is HTML
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
+    // Check if response is OK
+    if (!response.ok) {
+      console.log('[LinkPreview] Response not OK:', response.status);
       return null;
     }
 
-    // Only read first 50KB to avoid huge pages
-    const reader = response.body.getReader();
-    const chunks = [];
-    let totalSize = 0;
-    const maxSize = 50 * 1024;
-
-    while (totalSize < maxSize) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      totalSize += value.length;
+    // Check if response is HTML
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
+      console.log('[LinkPreview] Not HTML content:', contentType);
+      return null;
     }
-    reader.cancel();
 
-    const html = new TextDecoder().decode(Buffer.concat(chunks.map(c => Buffer.from(c))));
+    // Get the text content
+    const html = await response.text();
+    console.log('[LinkPreview] Fetched HTML length:', html.length);
 
     // Parse the HTML for metadata
     const metadata = parseMetaTags(html, url);
