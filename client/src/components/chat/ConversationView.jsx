@@ -1007,10 +1007,18 @@ function ConversationView() {
         stopTyping(userId);
 
         // Send DM via socket with file and reply support
+        console.log('[DEBUG] Sending message to:', userId);
         const message = await sendMessage(userId, content, selectedFile, replyToId);
+        console.log('[DEBUG] Message returned from server:', message);
 
         // Add to local state for DM
-        setMessages(prev => [...prev, message]);
+        console.log('[DEBUG] Adding message to state');
+        setMessages(prev => {
+          console.log('[DEBUG] Previous messages count:', prev.length);
+          const newMessages = [...prev, message];
+          console.log('[DEBUG] New messages count:', newMessages.length);
+          return newMessages;
+        });
 
         // If message contains URL, schedule fallback fetch
         if (content && containsUrl(content)) {

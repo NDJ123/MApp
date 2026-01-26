@@ -189,10 +189,13 @@ export const setupSocketHandlers = (io) => {
         };
 
         // Send to recipient (if online) - blocking already checked above
+        console.log('[DEBUG] Emitting message:receive to recipient:', recipientId.toString());
         io.to(recipientId.toString()).emit('message:receive', messageData);
 
         // Send back to sender for confirmation
+        console.log('[DEBUG] Calling callback with message:', messageData._id);
         callback?.({ success: true, message: messageData });
+        console.log('[DEBUG] Callback called successfully');
 
         // Fetch link preview asynchronously (don't block the message send)
         if (content?.trim() && messageType === 'text') {
