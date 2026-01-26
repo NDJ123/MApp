@@ -118,13 +118,10 @@ export function SocketProvider({ children }) {
         data.replyTo = replyTo;
       }
 
-      console.log('[DEBUG] Emitting message:send', data);
       socket.emit('message:send', data, (response) => {
-        console.log('[DEBUG] Received callback response:', response);
         if (response.error) {
           reject(new Error(response.error));
         } else {
-          console.log('[DEBUG] Resolving with message:', response.message);
           resolve(response.message);
         }
       });

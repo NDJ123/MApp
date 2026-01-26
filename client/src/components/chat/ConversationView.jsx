@@ -764,7 +764,9 @@ function ConversationView() {
       unsubscribers.push(
         subscribe('group:message:receive', (message) => {
           // Only add if it's for this group
-          if (message.group === groupId) {
+          // message.group can be either an object {_id, name} or just the ID string
+          const messageGroupId = message.group?._id || message.group;
+          if (messageGroupId === groupId) {
             setMessages(prev => [...prev, message]);
           }
         })
@@ -983,13 +985,8 @@ function ConversationView() {
     e?.preventDefault();
 
     const content = newMessage.trim();
-    console.log('[DEBUG] handleSendMessage called', { content, hasFile: !!selectedFile, isSending, isConnected });
-
     // Need either content or file
-    if ((!content && !selectedFile) || isSending || !isConnected) {
-      console.log('[DEBUG] Early return - conditions not met');
-      return;
-    }
+    if ((!content && !selectedFile) || isSending || !isConnected) return;
 
     try {
       setIsSending(true);
@@ -1012,18 +1009,10 @@ function ConversationView() {
         stopTyping(userId);
 
         // Send DM via socket with file and reply support
-        console.log('[DEBUG] Sending message to:', userId);
         const message = await sendMessage(userId, content, selectedFile, replyToId);
-        console.log('[DEBUG] Message returned from server:', message);
 
         // Add to local state for DM
-        console.log('[DEBUG] Adding message to state');
-        setMessages(prev => {
-          console.log('[DEBUG] Previous messages count:', prev.length);
-          const newMessages = [...prev, message];
-          console.log('[DEBUG] New messages count:', newMessages.length);
-          return newMessages;
-        });
+        setMessages(prev => [...prev, message]);
 
         // If message contains URL, schedule fallback fetch
         if (content && containsUrl(content)) {
