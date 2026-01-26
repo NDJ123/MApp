@@ -85,7 +85,7 @@ export const getUserById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const user = await User.findById(id)
-    .select('username displayName avatar createdAt');
+    .select('username displayName avatar bio createdAt');
 
   if (!user) {
     throw new AppError('User not found', 404);
@@ -115,12 +115,13 @@ export const getUserById = asyncHandler(async (req, res) => {
 // =============================================================================
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { displayName, avatar } = req.body;
+  const { displayName, avatar, bio } = req.body;
 
   // Only allow updating specific fields
   const updates = {};
-  if (displayName) updates.displayName = displayName;
-  if (avatar) updates.avatar = avatar;
+  if (displayName !== undefined) updates.displayName = displayName;
+  if (avatar !== undefined) updates.avatar = avatar;
+  if (bio !== undefined) updates.bio = bio;
 
   if (Object.keys(updates).length === 0) {
     throw new AppError('No valid fields to update', 400);

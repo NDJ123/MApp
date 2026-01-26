@@ -38,7 +38,7 @@ router.get('/search', searchUsers);
  * @route   PUT /api/users/profile
  * @desc    Update current user's profile
  * @access  Private
- * @body    { displayName, avatar }
+ * @body    { displayName, avatar, bio }
  */
 router.put('/profile', updateProfile);
 

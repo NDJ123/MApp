@@ -82,6 +82,13 @@ const userSchema = new mongoose.Schema(
       },
     },
 
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Bio cannot exceed 200 characters'],
+      default: '',
+    },
+
     // -------------------------------------------------------------------------
     // RELATIONSHIPS
     // -------------------------------------------------------------------------
