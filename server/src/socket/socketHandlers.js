@@ -171,25 +171,28 @@ export const setupSocketHandlers = (io) => {
 
         // Fetch link preview asynchronously (don't block the message send)
         if (content?.trim() && messageType === 'text') {
-          console.log(`[Socket] Starting link preview fetch for message ${message._id}`);
+          const msgId = message._id.toString();
+          const senderRoom = user._id.toString();
+          const recipientRoom = recipientId.toString();
+
+          console.log(`[Socket] Starting link preview for msg=${msgId}, content="${content.substring(0, 50)}..."`);
+
           getLinkPreviewForText(content).then(async (linkPreview) => {
-            console.log(`[Socket] Link preview result for ${message._id}:`, linkPreview ? 'found' : 'null');
+            console.log(`[Socket] Preview result for ${msgId}:`, linkPreview ? 'FOUND' : 'NULL');
             if (linkPreview) {
-              // Update message with link preview
               await Message.findByIdAndUpdate(message._id, { linkPreview });
-              console.log(`[Socket] Updated message ${message._id} with link preview`);
+              console.log(`[Socket] DB updated for ${msgId}`);
 
-              // Notify both users about the link preview
-              const previewData = { messageId: message._id.toString(), linkPreview };
-              console.log(`[Socket] Emitting link preview to rooms: ${recipientId.toString()}, ${user._id.toString()}`);
-              console.log(`[Socket] Preview messageId: ${previewData.messageId}`);
-              io.to(recipientId.toString()).emit('message:linkPreview', previewData);
-              io.to(user._id.toString()).emit('message:linkPreview', previewData);
+              const previewData = { messageId: msgId, linkPreview };
+              console.log(`[Socket] Emitting to rooms: sender=${senderRoom}, recipient=${recipientRoom}`);
 
-              console.log(`[Socket] Link preview added for message ${message._id}`);
+              io.to(recipientRoom).emit('message:linkPreview', previewData);
+              io.to(senderRoom).emit('message:linkPreview', previewData);
+
+              console.log(`[Socket] Emitted link preview for ${msgId}`);
             }
           }).catch(err => {
-            console.error('[Socket] Link preview error:', err.message, err.stack);
+            console.error('[Socket] Link preview error:', msgId, err.message);
           });
         }
       } catch (error) {
