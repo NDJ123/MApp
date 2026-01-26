@@ -335,6 +335,15 @@ export const messageAPI = {
    * @param {string} messageId - Message ID
    */
   fetchLinkPreview: (messageId) => api.post(`/messages/${messageId}/link-preview`),
+
+  /**
+   * Search messages
+   * @param {string} query - Search query
+   * @param {string} conversationId - Optional conversation ID to search within
+   */
+  search: (query, conversationId) => api.get('/messages/search', {
+    params: { q: query, conversationId },
+  }),
 };
 
 // =============================================================================

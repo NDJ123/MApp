@@ -244,7 +244,7 @@ function FileAttachment({ file, isOwnMessage }) {
 // MESSAGE BUBBLE COMPONENT
 // =============================================================================
 
-function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction, onEditMessage, onDeleteMessage, onReply }) {
+function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction, onEditMessage, onDeleteMessage, onReply, isHighlighted, messageRef }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -302,7 +302,8 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
   if (isOwnMessage) {
     return (
       <div
-        className="flex justify-end mb-3 group"
+        ref={messageRef}
+        className={`flex justify-end mb-3 group transition-all duration-300 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/30 -mx-2 px-2 py-1 rounded-lg' : ''}`}
         onMouseLeave={() => {
           setShowEmojiPicker(false);
           setShowDeleteConfirm(false);
@@ -449,7 +450,8 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
 
   return (
     <div
-      className="flex gap-3 mb-3 group"
+      ref={messageRef}
+      className={`flex gap-3 mb-3 group transition-all duration-300 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/30 -mx-2 px-2 py-1 rounded-lg' : ''}`}
       onMouseLeave={() => setShowEmojiPicker(false)}
     >
       {showAvatar ? (
@@ -559,11 +561,22 @@ function ConversationView() {
   const [filePreview, setFilePreview] = useState(null);    // Preview URL for images
   const [replyingTo, setReplyingTo] = useState(null);      // Message being replied to
 
+  // Search state
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+
   // Refs
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesRef = useRef(messages); // Keep ref to current messages for fallback
+  const searchInputRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
+  const messageRefs = useRef({}); // To store refs for each message for scrolling
 
   // Keep messagesRef updated
   useEffect(() => {
@@ -577,6 +590,98 @@ function ConversationView() {
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // SEARCH FUNCTIONS
+  // ---------------------------------------------------------------------------
+
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    // Debounce search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (query.trim().length < 2) {
+      setSearchResults([]);
+      setCurrentSearchIndex(0);
+      setHighlightedMessageId(null);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        // Build conversation ID for searching within this conversation
+        let convId;
+        if (isGroupChat) {
+          convId = `group:${groupId}`;
+        } else {
+          // DM conversation IDs are sorted user IDs joined by colon
+          const sortedIds = [currentUser._id, userId].sort();
+          convId = sortedIds.join(':');
+        }
+
+        const response = await messageAPI.search(query, convId);
+        const results = response.data.data.messages;
+        setSearchResults(results);
+        setCurrentSearchIndex(0);
+
+        if (results.length > 0) {
+          scrollToMessage(results[0]._id);
+        } else {
+          setHighlightedMessageId(null);
+        }
+      } catch (err) {
+        console.error('Search failed:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+  };
+
+  const scrollToMessage = (messageId) => {
+    setHighlightedMessageId(messageId);
+    const messageEl = messageRefs.current[messageId];
+    if (messageEl) {
+      messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    // Clear highlight after 2 seconds
+    setTimeout(() => {
+      setHighlightedMessageId(null);
+    }, 2000);
+  };
+
+  const navigateSearch = (direction) => {
+    if (searchResults.length === 0) return;
+
+    let newIndex;
+    if (direction === 'next') {
+      newIndex = (currentSearchIndex + 1) % searchResults.length;
+    } else {
+      newIndex = currentSearchIndex === 0 ? searchResults.length - 1 : currentSearchIndex - 1;
+    }
+
+    setCurrentSearchIndex(newIndex);
+    scrollToMessage(searchResults[newIndex]._id);
+  };
+
+  const closeSearch = () => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setCurrentSearchIndex(0);
+    setHighlightedMessageId(null);
+  };
+
+  // Focus search input when search opens
+  useEffect(() => {
+    if (showSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showSearch]);
 
   // ---------------------------------------------------------------------------
   // FETCH CONVERSATION DATA
@@ -1015,7 +1120,7 @@ function ConversationView() {
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Header */}
-      <div className="h-16 px-4 flex items-center border-b border-[var(--color-border)] flex-shrink-0">
+      <div className="h-16 px-4 flex items-center justify-between border-b border-[var(--color-border)] flex-shrink-0">
         <div className="flex items-center gap-3">
           {/* Avatar/Icon */}
           {isGroupChat ? (
@@ -1062,7 +1167,84 @@ function ConversationView() {
             </p>
           </div>
         </div>
+        {/* Search button */}
+        <button
+          onClick={() => setShowSearch(!showSearch)}
+          className={`p-2 rounded-lg transition-colors ${
+            showSearch
+              ? 'bg-[var(--color-primary)] text-white'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]'
+          }`}
+          title="Search messages"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
       </div>
+
+      {/* Search bar */}
+      {showSearch && (
+        <div className="px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                placeholder="Search in conversation..."
+                className="w-full pl-10 pr-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              />
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Spinner size="small" />
+                </div>
+              )}
+            </div>
+            {searchResults.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-[var(--color-text-secondary)] min-w-[60px] text-center">
+                  {currentSearchIndex + 1} / {searchResults.length}
+                </span>
+                <button
+                  onClick={() => navigateSearch('prev')}
+                  className="p-2 hover:bg-[var(--color-surface-hover)] rounded transition-colors"
+                  title="Previous result"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => navigateSearch('next')}
+                  className="p-2 hover:bg-[var(--color-surface-hover)] rounded transition-colors"
+                  title="Next result"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            <button
+              onClick={closeSearch}
+              className="p-2 hover:bg-[var(--color-surface-hover)] rounded transition-colors"
+              title="Close search"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
+            <p className="text-sm text-[var(--color-text-tertiary)] mt-2">No messages found</p>
+          )}
+        </div>
+      )}
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4">
@@ -1096,6 +1278,8 @@ function ConversationView() {
                   onEditMessage={handleEditMessage}
                   onDeleteMessage={handleDeleteMessage}
                   onReply={setReplyingTo}
+                  isHighlighted={highlightedMessageId === message._id}
+                  messageRef={(el) => { messageRefs.current[message._id] = el; }}
                 />
               );
             })}

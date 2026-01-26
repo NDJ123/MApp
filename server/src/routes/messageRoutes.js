@@ -21,6 +21,7 @@ import {
   addReaction,
   removeReaction,
   fetchLinkPreview,
+  searchMessages,
 } from '../controllers/messageController.js';
 
 const router = express.Router();
@@ -37,6 +38,9 @@ router.get('/group/:groupId', getGroupMessages);
 
 // Unread count
 router.get('/unread', getUnreadCount);
+
+// Search messages
+router.get('/search', searchMessages);
 
 // Reaction routes
 router.post('/:messageId/reactions', addReaction);

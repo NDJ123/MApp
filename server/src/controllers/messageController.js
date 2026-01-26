@@ -365,6 +365,105 @@ export const removeReaction = async (req, res, next) => {
 // Fetches and saves link preview for a message
 // =============================================================================
 
+// =============================================================================
+// SEARCH MESSAGES
+// =============================================================================
+// GET /api/messages/search?q=query&conversationId=xxx
+// Searches messages by content within user's conversations
+// =============================================================================
+
+export const searchMessages = async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id;
+    const { q, conversationId } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Search query must be at least 2 characters',
+      });
+    }
+
+    const searchQuery = q.trim();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Build the base query
+    const query = {
+      content: { $regex: searchQuery, $options: 'i' },
+      deleted: false,
+    };
+
+    // If conversationId is provided, search within that conversation
+    if (conversationId) {
+      // Verify user has access to this conversation
+      if (conversationId.startsWith('group:')) {
+        const groupId = conversationId.replace('group:', '');
+        const group = await Group.findById(groupId);
+        if (!group || !group.isMember(currentUserId)) {
+          return res.status(403).json({
+            status: 'error',
+            message: 'You do not have access to this conversation',
+          });
+        }
+      } else {
+        // DM conversation - verify user is part of it
+        const [id1, id2] = conversationId.split(':');
+        if (id1 !== currentUserId.toString() && id2 !== currentUserId.toString()) {
+          return res.status(403).json({
+            status: 'error',
+            message: 'You do not have access to this conversation',
+          });
+        }
+      }
+      query.conversationId = conversationId;
+    } else {
+      // Search across all user's conversations
+      // Get all groups user is a member of
+      const userGroups = await Group.find({ 'members.user': currentUserId, isActive: true });
+      const groupConversationIds = userGroups.map(g => `group:${g._id}`);
+
+      // Build conversation filter: user's DMs OR user's groups
+      query.$or = [
+        { sender: currentUserId },
+        { recipient: currentUserId },
+        { conversationId: { $in: groupConversationIds } },
+      ];
+    }
+
+    // Execute search
+    const messages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('sender', 'username displayName avatar')
+      .populate('recipient', 'username displayName avatar')
+      .populate('group', 'name avatar')
+      .lean();
+
+    // Get total count
+    const total = await Message.countDocuments(query);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        messages,
+        query: searchQuery,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+          hasMore: skip + messages.length < total,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const fetchLinkPreview = async (req, res, next) => {
   try {
     const { messageId } = req.params;
