@@ -160,7 +160,7 @@ function InviteManagement() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Invite Management</h1>
           <p className="mt-1 text-[var(--color-text-secondary)]">
-            Generate invite codes to add new users to MApp
+            Generate invite codes to add new users to Padeltalk
           </p>
         </div>
 

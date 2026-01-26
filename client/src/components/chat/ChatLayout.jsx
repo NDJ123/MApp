@@ -87,7 +87,7 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
     <aside className="w-[var(--sidebar-width)] h-full flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-border)]">
       {/* Header */}
       <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[var(--color-primary)]">MApp</h1>
+        <h1 className="text-xl font-bold text-[var(--color-primary)] tracking-tight">Padel<span className="text-[var(--color-text-primary)]">talk</span></h1>
         {/* Close button - only visible on mobile */}
         {onCloseMobile && (
           <button
@@ -236,12 +236,12 @@ function WelcomeView({ onOpenSidebar, isMobile }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <h1 className="ml-3 text-lg font-semibold text-[var(--color-primary)]">MApp</h1>
+          <h1 className="ml-3 text-lg font-semibold text-[var(--color-primary)] tracking-tight">Padel<span className="text-[var(--color-text-primary)]">talk</span></h1>
         </div>
       )}
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center px-4">
-          <h2 className="text-2xl font-semibold mb-2">Welcome to MApp</h2>
+          <h2 className="text-2xl font-semibold mb-2">Welcome to <span className="text-[var(--color-primary)]">Padel</span>talk</h2>
           <p className="text-[var(--color-text-secondary)]">
             {isMobile ? 'Tap the menu to start a conversation' : 'Select a conversation to start messaging'}
           </p>

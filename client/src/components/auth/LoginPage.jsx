@@ -94,8 +94,8 @@ function LoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link to="/" className="text-2xl font-bold text-[var(--color-primary)]">
-            MApp
+          <Link to="/" className="text-2xl font-bold text-[var(--color-primary)] tracking-tight">
+            Padel<span className="text-[var(--color-text-primary)]">talk</span>
           </Link>
           <h1 className="mt-6 text-2xl font-semibold">Welcome back</h1>
           <p className="mt-2 text-[var(--color-text-secondary)]">

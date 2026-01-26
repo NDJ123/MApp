@@ -19,8 +19,8 @@ function LandingPage() {
           ------------------------------------------------------------------- */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
         {/* Logo / App name */}
-        <div className="text-xl font-bold text-[var(--color-primary)]">
-          MApp
+        <div className="text-xl font-bold text-[var(--color-primary)] tracking-tight">
+          Padel<span className="text-[var(--color-text-primary)]">talk</span>
         </div>
 
         {/* Navigation links */}
@@ -75,7 +75,7 @@ function LandingPage() {
 
           {/* Invite note */}
           <p className="mt-6 text-sm text-[var(--color-text-tertiary)]">
-            MApp is invite-only. You'll need an invite code to sign up.
+            Padeltalk is invite-only. You'll need an invite code to sign up.
           </p>
         </div>
       </main>
