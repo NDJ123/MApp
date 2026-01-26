@@ -188,11 +188,8 @@ export const setupSocketHandlers = (io) => {
           createdAt: message.createdAt,
         };
 
-        // Send to recipient (if online and hasn't blocked sender)
-        const recipientUser = await User.findById(recipientId);
-        if (!recipientUser.hasBlocked(user._id)) {
-          io.to(recipientId.toString()).emit('message:receive', messageData);
-        }
+        // Send to recipient (if online) - blocking already checked above
+        io.to(recipientId.toString()).emit('message:receive', messageData);
 
         // Send back to sender for confirmation
         callback?.({ success: true, message: messageData });

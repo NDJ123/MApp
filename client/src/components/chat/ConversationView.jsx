@@ -584,11 +584,16 @@ function ConversationView() {
   const searchInputRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const messageRefs = useRef({}); // To store refs for each message for scrolling
+  const markAsReadRef = useRef(markAsRead); // Stable ref to avoid re-fetching messages
 
-  // Keep messagesRef updated
+  // Keep refs updated
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    markAsReadRef.current = markAsRead;
+  }, [markAsRead]);
 
   // ---------------------------------------------------------------------------
   // SCROLL TO BOTTOM
@@ -724,8 +729,8 @@ function ConversationView() {
           setIsBlocked(userData.isBlocked || false);
           setIsMuted(userData.isMuted || false);
 
-          // Mark messages as read for DMs
-          markAsRead(userId);
+          // Mark messages as read for DMs (use ref to avoid re-fetching on markAsRead change)
+          markAsReadRef.current?.(userId);
         }
       } catch (err) {
         setError(err.message || 'Failed to load conversation');
@@ -738,7 +743,7 @@ function ConversationView() {
     if (conversationId) {
       fetchData();
     }
-  }, [conversationId, isGroupChat, userId, groupId, markAsRead]);
+  }, [conversationId, isGroupChat, userId, groupId]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
