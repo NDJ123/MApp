@@ -393,6 +393,12 @@ function ConversationView() {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+  const messagesRef = useRef(messages); // Keep ref to current messages for fallback
+
+  // Keep messagesRef updated
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // ---------------------------------------------------------------------------
   // SCROLL TO BOTTOM
@@ -608,11 +614,11 @@ function ConversationView() {
   };
 
   // Fallback: re-fetch messages to get link preview if socket event fails
-  const fetchLinkPreviewFallback = async (messageId, delay = 3000) => {
+  const fetchLinkPreviewFallback = (messageId, delay = 3000) => {
     setTimeout(async () => {
       try {
-        // Check if message already has link preview
-        const currentMsg = messages.find(m => m._id === messageId);
+        // Use ref to check current state (avoid stale closure)
+        const currentMsg = messagesRef.current.find(m => m._id === messageId);
         if (currentMsg?.linkPreview) {
           console.log('[ConversationView] Link preview already present, skipping fallback');
           return;
