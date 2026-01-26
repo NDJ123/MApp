@@ -63,18 +63,11 @@ export function SocketProvider({ children }) {
 
     // Connection events
     newSocket.on('connect', () => {
-      console.log('[Socket] Connected:', newSocket.id);
       setIsConnected(true);
       intentionalDisconnect.current = false;
     });
 
-    // Debug: Log ALL incoming events
-    newSocket.onAny((eventName, ...args) => {
-      console.log('[Socket] Event received:', eventName, args);
-    });
-
     newSocket.on('disconnect', (reason) => {
-      console.log('[Socket] Disconnected:', reason);
       setIsConnected(false);
     });
 

@@ -87,7 +87,7 @@ function parseMetaTags(html, url) {
     }
 
   } catch (error) {
-    console.error('[LinkPreview] Error parsing HTML:', error.message);
+    // Silently fail on parse errors
   }
 
   return metadata;
@@ -128,16 +128,14 @@ function decodeHtmlEntities(text) {
  * @returns {Promise<Object|null>} Metadata object or null if failed
  */
 export async function fetchLinkPreview(url) {
-  console.log('[LinkPreview] Fetching preview for:', url);
   try {
     // Validate URL
     new URL(url);
 
     // Fetch the page with a timeout
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-    console.log('[LinkPreview] Making fetch request...');
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
@@ -146,47 +144,25 @@ export async function fetchLinkPreview(url) {
         'Accept-Language': 'en-US,en;q=0.5',
       },
       redirect: 'follow',
-      size: 50 * 1024, // Limit response size to 50KB (node-fetch option)
+      size: 50 * 1024,
     });
 
-    console.log('[LinkPreview] Response status:', response.status);
     clearTimeout(timeout);
 
-    // Check if response is OK
-    if (!response.ok) {
-      console.log('[LinkPreview] Response not OK:', response.status);
-      return null;
-    }
+    if (!response.ok) return null;
 
     // Check if response is HTML
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
-      console.log('[LinkPreview] Not HTML content:', contentType);
       return null;
     }
 
-    // Get the text content
     const html = await response.text();
-    console.log('[LinkPreview] Fetched HTML length:', html.length);
-
-    // Parse the HTML for metadata
     const metadata = parseMetaTags(html, url);
-    console.log('[LinkPreview] Parsed metadata:', JSON.stringify(metadata, null, 2));
 
     // Only return if we have at least a title
-    if (metadata.title) {
-      console.log('[LinkPreview] Successfully extracted preview with title:', metadata.title);
-      return metadata;
-    }
-
-    console.log('[LinkPreview] No title found, returning null');
-    return null;
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.log(`[LinkPreview] Timeout fetching ${url}`);
-    } else {
-      console.log(`[LinkPreview] Error fetching ${url}:`, error.message);
-    }
+    return metadata.title ? metadata : null;
+  } catch {
     return null;
   }
 }
@@ -197,13 +173,9 @@ export async function fetchLinkPreview(url) {
  * @returns {Promise<Object|null>} Link preview data or null
  */
 export async function getLinkPreviewForText(text) {
-  console.log('[LinkPreview] Extracting URLs from text:', text);
   const urls = extractUrls(text);
-  console.log('[LinkPreview] Found URLs:', urls);
   if (urls.length === 0) return null;
 
   // Only preview the first URL
-  const preview = await fetchLinkPreview(urls[0]);
-  console.log('[LinkPreview] Final preview result:', preview ? 'success' : 'null');
-  return preview;
+  return await fetchLinkPreview(urls[0]);
 }

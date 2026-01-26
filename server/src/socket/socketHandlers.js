@@ -167,50 +167,19 @@ export const setupSocketHandlers = (io) => {
         // Send back to sender for confirmation
         callback?.({ success: true, message: messageData });
 
-        console.log(`[Socket] ${messageType} message from ${user.username} to ${recipient.username}`);
-
         // Fetch link preview asynchronously (don't block the message send)
         if (content?.trim() && messageType === 'text') {
           const msgId = message._id.toString();
-          const senderRoom = user._id.toString();
-          const recipientRoom = recipientId.toString();
-          const timestamp = new Date().toISOString();
-
-          console.log(`[Socket ${timestamp}] Starting link preview for msg=${msgId}`);
-          console.log(`[Socket ${timestamp}] Content: "${content}"`);
 
           getLinkPreviewForText(content).then(async (linkPreview) => {
-            const ts2 = new Date().toISOString();
-            console.log(`[Socket ${ts2}] Preview result for ${msgId}:`, linkPreview ? 'FOUND' : 'NULL');
-
             if (linkPreview) {
-              // Update database
-              const updated = await Message.findByIdAndUpdate(
-                message._id,
-                { linkPreview },
-                { new: true }
-              );
-              console.log(`[Socket ${ts2}] DB updated for ${msgId}, has preview:`, !!updated?.linkPreview);
-
-              // Verify the update worked
-              const verify = await Message.findById(message._id);
-              console.log(`[Socket ${ts2}] Verify DB - has linkPreview:`, !!verify?.linkPreview);
+              await Message.findByIdAndUpdate(message._id, { linkPreview });
 
               const previewData = { messageId: msgId, linkPreview };
-              console.log(`[Socket ${ts2}] Emitting to sender=${senderRoom}, recipient=${recipientRoom}`);
-
-              io.to(recipientRoom).emit('message:linkPreview', previewData);
-              io.to(senderRoom).emit('message:linkPreview', previewData);
-
-              console.log(`[Socket ${ts2}] DONE: Link preview emitted for ${msgId}`);
-            } else {
-              console.log(`[Socket ${ts2}] No preview found for ${msgId}`);
+              io.to(recipientId.toString()).emit('message:linkPreview', previewData);
+              io.to(user._id.toString()).emit('message:linkPreview', previewData);
             }
-          }).catch(err => {
-            console.error(`[Socket] Link preview error for ${msgId}:`, err.message, err.stack);
-          });
-        } else {
-          console.log(`[Socket] Skipping link preview: messageType=${messageType}, hasContent=${!!content?.trim()}`);
+          }).catch(() => {});
         }
       } catch (error) {
         console.error('[Socket] Send message error:', error);
@@ -381,28 +350,17 @@ export const setupSocketHandlers = (io) => {
         // Send confirmation to sender
         callback?.({ success: true, message: messageData });
 
-        console.log(`[Socket] Group ${messageType} message from ${user.username} to ${group.name}`);
-
         // Fetch link preview asynchronously (don't block the message send)
         if (content?.trim() && messageType === 'text') {
-          console.log(`[Socket] Starting link preview fetch for group message ${message._id}`);
           getLinkPreviewForText(content).then(async (linkPreview) => {
-            console.log(`[Socket] Link preview result for group ${message._id}:`, linkPreview ? 'found' : 'null');
             if (linkPreview) {
-              // Update message with link preview
               await Message.findByIdAndUpdate(message._id, { linkPreview });
-              console.log(`[Socket] Updated group message ${message._id} with link preview`);
-
-              // Notify all group members about the link preview
-              const groupPreviewData = { messageId: message._id.toString(), linkPreview };
-              console.log(`[Socket] Emitting link preview to group room: group:${groupId}, messageId: ${groupPreviewData.messageId}`);
-              io.to(`group:${groupId}`).emit('message:linkPreview', groupPreviewData);
-
-              console.log(`[Socket] Link preview added for group message ${message._id}`);
+              io.to(`group:${groupId}`).emit('message:linkPreview', {
+                messageId: message._id.toString(),
+                linkPreview,
+              });
             }
-          }).catch(err => {
-            console.error('[Socket] Link preview error:', err.message, err.stack);
-          });
+          }).catch(() => {});
         }
       } catch (error) {
         console.error('[Socket] Send group message error:', error);

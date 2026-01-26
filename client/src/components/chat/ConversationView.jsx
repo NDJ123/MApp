@@ -540,19 +540,12 @@ function ConversationView() {
       })
     );
 
-    // Listen for link preview updates
+    // Listen for link preview updates (socket fallback)
     unsubscribers.push(
       subscribe('message:linkPreview', ({ messageId, linkPreview }) => {
-        console.log('[ConversationView] Received link preview for message:', messageId);
-        console.log('[ConversationView] Preview data:', linkPreview);
-        setMessages(prev => {
-          console.log('[ConversationView] Current message IDs:', prev.map(m => m._id));
-          const found = prev.find(m => m._id === messageId);
-          console.log('[ConversationView] Found matching message:', found ? 'yes' : 'no');
-          return prev.map(msg =>
-            msg._id === messageId ? { ...msg, linkPreview } : msg
-          );
-        });
+        setMessages(prev => prev.map(msg =>
+          msg._id === messageId ? { ...msg, linkPreview } : msg
+        ));
       })
     );
 
@@ -614,40 +607,27 @@ function ConversationView() {
   };
 
   // Fetch link preview using direct API call
-  // This bypasses socket issues entirely
-  const fetchLinkPreviewForMessage = async (messageId, attempt = 1) => {
+  const fetchLinkPreviewForMessage = (messageId, attempt = 1) => {
     const maxAttempts = 3;
     const delay = attempt * 2000; // 2s, 4s, 6s
-
-    console.log(`[ConversationView] Scheduling link preview fetch for ${messageId}, attempt ${attempt} in ${delay}ms`);
 
     setTimeout(async () => {
       try {
         // Check if already has preview
         const currentMsg = messagesRef.current.find(m => String(m._id) === String(messageId));
-        if (currentMsg?.linkPreview) {
-          console.log('[ConversationView] Link preview already present, skipping');
-          return;
-        }
+        if (currentMsg?.linkPreview) return;
 
-        console.log(`[ConversationView] Fetching link preview for ${messageId} via API`);
         const response = await messageAPI.fetchLinkPreview(messageId);
         const { linkPreview } = response.data.data;
-
-        console.log('[ConversationView] API response:', linkPreview ? 'got preview' : 'no preview');
 
         if (linkPreview) {
           setMessages(prev => prev.map(msg =>
             String(msg._id) === String(messageId) ? { ...msg, linkPreview } : msg
           ));
-          console.log('[ConversationView] Link preview updated in state');
         } else if (attempt < maxAttempts) {
-          // Retry - maybe the server hasn't finished fetching yet
-          console.log('[ConversationView] No preview yet, scheduling retry');
           fetchLinkPreviewForMessage(messageId, attempt + 1);
         }
       } catch (err) {
-        console.error('[ConversationView] API fetch error:', err);
         if (attempt < maxAttempts) {
           fetchLinkPreviewForMessage(messageId, attempt + 1);
         }
