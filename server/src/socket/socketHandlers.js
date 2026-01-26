@@ -14,7 +14,7 @@ import Message from '../models/Message.js';
 import Group from '../models/Group.js';
 import { getLinkPreviewForText } from '../utils/linkPreview.js';
 
-// Store online users: { oderId: Set of socketIds }
+// Store online users: { userId: Set of socketIds }
 const onlineUsers = new Map();
 
 // =============================================================================
@@ -82,7 +82,7 @@ export const setupSocketHandlers = (io) => {
 
     // Broadcast online status to contacts
     socket.broadcast.emit('user:online', {
-      oderId: user._id,
+      userId: user._id,
       username: user.username,
     });
 
@@ -212,14 +212,14 @@ export const setupSocketHandlers = (io) => {
 
     socket.on('typing:start', ({ recipientId }) => {
       io.to(recipientId).emit('typing:start', {
-        oderId: user._id,
+        userId: user._id,
         username: user.username,
       });
     });
 
     socket.on('typing:stop', ({ recipientId }) => {
       io.to(recipientId).emit('typing:stop', {
-        oderId: user._id,
+        userId: user._id,
       });
     });
 
@@ -229,14 +229,14 @@ export const setupSocketHandlers = (io) => {
     // When user opens a conversation, mark messages as read
     // -------------------------------------------------------------------------
 
-    socket.on('messages:read', async ({ oderId }) => {
+    socket.on('messages:read', async ({ userId }) => {
       try {
-        const conversationId = Message.getDMConversationId(user._id, oderId);
+        const conversationId = Message.getDMConversationId(user._id, userId);
 
         // Find unread messages from the other user
         const unreadMessages = await Message.find({
           conversationId,
-          sender: oderId,
+          sender: userId,
           'readBy.user': { $ne: user._id },
         });
 
@@ -246,8 +246,8 @@ export const setupSocketHandlers = (io) => {
         }
 
         // Notify the other user that their messages were read
-        io.to(oderId).emit('messages:read', {
-          oderId: user._id,
+        io.to(userId).emit('messages:read', {
+          userId: user._id,
           conversationId,
         });
       } catch (error) {
@@ -611,7 +611,7 @@ export const setupSocketHandlers = (io) => {
 
           // Broadcast offline status
           socket.broadcast.emit('user:offline', {
-            oderId: user._id,
+            userId: user._id,
           });
         }
       }
@@ -626,8 +626,8 @@ export const setupSocketHandlers = (io) => {
 // =============================================================================
 
 // Check if a user is online
-export const isUserOnline = (oderId) => {
-  return onlineUsers.has(oderId.toString()) && onlineUsers.get(oderId.toString()).size > 0;
+export const isUserOnline = (userId) => {
+  return onlineUsers.has(userId.toString()) && onlineUsers.get(userId.toString()).size > 0;
 };
 
 // Get all online user IDs
