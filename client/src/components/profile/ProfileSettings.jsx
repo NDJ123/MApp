@@ -9,11 +9,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { userAPI } from '../../services/api';
 import Spinner from '../common/Spinner';
 
 function ProfileSettings() {
   const { user, refreshUser } = useAuth();
+  const { permission, enabled, toggleNotifications, requestPermission } = useNotifications();
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -316,6 +318,72 @@ function ProfileSettings() {
               <p>
                 <span className="text-[var(--color-text-tertiary)]">Invited by:</span>{' '}
                 {user.invitedBy.displayName || user.invitedBy.username}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Notification settings */}
+        <div className="mt-8 pt-8 border-t border-[var(--color-border)]">
+          <h2 className="text-lg font-semibold mb-4">Notifications</h2>
+          <div className="space-y-4">
+            {/* Desktop notifications toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Desktop Notifications</p>
+                <p className="text-xs text-[var(--color-text-tertiary)]">
+                  Receive notifications for new messages
+                </p>
+              </div>
+              <button
+                onClick={() => toggleNotifications()}
+                className={`
+                  relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                  ${enabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}
+                `}
+              >
+                <span
+                  className={`
+                    inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                    ${enabled ? 'translate-x-6' : 'translate-x-1'}
+                  `}
+                />
+              </button>
+            </div>
+
+            {/* Permission status */}
+            <div className="text-sm">
+              <span className="text-[var(--color-text-tertiary)]">Status: </span>
+              {permission === 'granted' && (
+                <span className="text-green-600 dark:text-green-400">Allowed</span>
+              )}
+              {permission === 'denied' && (
+                <span className="text-red-600 dark:text-red-400">
+                  Blocked - Enable in browser settings
+                </span>
+              )}
+              {permission === 'default' && (
+                <span className="text-yellow-600 dark:text-yellow-400">
+                  Not yet requested
+                </span>
+              )}
+            </div>
+
+            {/* Request permission button (if not yet granted) */}
+            {permission === 'default' && enabled && (
+              <button
+                onClick={requestPermission}
+                className="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors"
+              >
+                Enable Notifications
+              </button>
+            )}
+
+            {/* Help text for denied */}
+            {permission === 'denied' && (
+              <p className="text-xs text-[var(--color-text-tertiary)]">
+                To enable notifications, click the lock icon in your browser's address bar
+                and change the notification permission to "Allow".
               </p>
             )}
           </div>

@@ -17,6 +17,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 // Context providers
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 // Page components
 import LandingPage from './components/common/LandingPage';
@@ -35,6 +36,8 @@ function App() {
     <AuthProvider>
       {/* SocketProvider connects to the server for real-time features */}
       <SocketProvider>
+        {/* NotificationProvider handles desktop notifications */}
+        <NotificationProvider>
         <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
           <Routes>
           {/* ----------------------------------------------------------------- */}
@@ -73,6 +76,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
+        </NotificationProvider>
       </SocketProvider>
     </AuthProvider>
   );
