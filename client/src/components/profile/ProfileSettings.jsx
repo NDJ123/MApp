@@ -147,7 +147,7 @@ function ProfileSettings() {
 
           {/* Success message */}
           {success && (
-            <div className="p-4 bg-green-500 bg-opacity-10 border border-green-500 rounded-lg text-green-500">
+            <div className="p-4 bg-green-100 border border-green-500 rounded-lg text-green-800 dark:bg-green-900 dark:text-green-200">
               {success}
             </div>
           )}
