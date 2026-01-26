@@ -261,7 +261,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
   if (isOwnMessage) {
     return (
       <div
-        className="flex justify-end mb-3 relative"
+        className="flex justify-end mb-3 group"
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => {
           setShowActions(false);
@@ -269,61 +269,10 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
         }}
       >
         <div className="max-w-[70%]">
-          <div className="flex items-baseline gap-2 justify-end mb-1">
-            {isEdited && (
-              <span className="text-xs text-[var(--color-text-tertiary)] italic">edited</span>
-            )}
-            <span className="text-xs text-[var(--color-text-tertiary)]">{time}</span>
-          </div>
-          <div className="relative">
-            <div className="bg-[var(--color-primary)] text-white rounded-lg px-4 py-2">
-              {hasFile && (
-                <div className={hasContent ? 'mb-2' : ''}>
-                  <FileAttachment file={message.file} isOwnMessage={true} />
-                </div>
-              )}
-              {isEditing ? (
-                <div>
-                  <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    onKeyDown={handleEditKeyDown}
-                    className="w-full bg-white/20 text-white rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-white/50"
-                    rows={2}
-                    autoFocus
-                  />
-                  <div className="flex gap-2 mt-2 text-xs">
-                    <button
-                      onClick={handleEditSubmit}
-                      className="px-2 py-1 bg-white/20 rounded hover:bg-white/30"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditContent(message.content || '');
-                      }}
-                      className="px-2 py-1 bg-white/10 rounded hover:bg-white/20"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {hasContent && (
-                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                  )}
-                </>
-              )}
-              {hasLinkPreview && !isEditing && (
-                <LinkPreview preview={message.linkPreview} isOwnMessage={true} />
-              )}
-            </div>
-            {/* Action buttons */}
+          <div className="flex items-center gap-2 justify-end mb-1">
+            {/* Action buttons - appear on hover */}
             {showActions && !isEditing && (
-              <div className="absolute -left-16 top-1/2 -translate-y-1/2 flex gap-1">
+              <div className="flex gap-1">
                 {canEdit && (
                   <button
                     onClick={() => setIsEditing(true)}
@@ -335,19 +284,70 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
                     </svg>
                   </button>
                 )}
-                <button
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
-                >
-                  😊
-                </button>
-                {showEmojiPicker && (
-                  <EmojiPicker
-                    onSelect={(emoji) => handleReactionClick(emoji)}
-                    onClose={() => setShowEmojiPicker(false)}
-                  />
-                )}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
+                  >
+                    😊
+                  </button>
+                  {showEmojiPicker && (
+                    <EmojiPicker
+                      onSelect={(emoji) => handleReactionClick(emoji)}
+                      onClose={() => setShowEmojiPicker(false)}
+                    />
+                  )}
+                </div>
               </div>
+            )}
+            {isEdited && (
+              <span className="text-xs text-[var(--color-text-tertiary)] italic">edited</span>
+            )}
+            <span className="text-xs text-[var(--color-text-tertiary)]">{time}</span>
+          </div>
+          <div className="bg-[var(--color-primary)] text-white rounded-lg px-4 py-2">
+            {hasFile && (
+              <div className={hasContent ? 'mb-2' : ''}>
+                <FileAttachment file={message.file} isOwnMessage={true} />
+              </div>
+            )}
+            {isEditing ? (
+              <div>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
+                  className="w-full bg-white/20 text-white rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-white/50"
+                  rows={2}
+                  autoFocus
+                />
+                <div className="flex gap-2 mt-2 text-xs">
+                  <button
+                    onClick={handleEditSubmit}
+                    className="px-2 py-1 bg-white/20 rounded hover:bg-white/30"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditContent(message.content || '');
+                    }}
+                    className="px-2 py-1 bg-white/10 rounded hover:bg-white/20"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {hasContent && (
+                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                )}
+              </>
+            )}
+            {hasLinkPreview && !isEditing && (
+              <LinkPreview preview={message.linkPreview} isOwnMessage={true} />
             )}
           </div>
           {/* Reactions display */}
