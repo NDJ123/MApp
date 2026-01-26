@@ -254,7 +254,9 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
   const hasContent = message.content && message.content.trim();
   const hasLinkPreview = message.linkPreview && message.linkPreview.url;
   const isEdited = !!message.editedAt;
-  const canEdit = isOwnMessage && message.messageType === 'text' && hasContent;
+  // Default messageType to 'text' for backwards compatibility
+  const messageType = message.messageType || 'text';
+  const canEdit = isOwnMessage && messageType === 'text' && hasContent && !hasFile;
 
   if (isOwnMessage) {
     return (
