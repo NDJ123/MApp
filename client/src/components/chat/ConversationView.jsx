@@ -601,6 +601,45 @@ function ConversationView() {
   // HANDLE SEND MESSAGE
   // ---------------------------------------------------------------------------
 
+  // Simple URL detection regex
+  const containsUrl = (text) => {
+    const urlRegex = /https?:\/\/[^\s]+/i;
+    return urlRegex.test(text);
+  };
+
+  // Fallback: re-fetch messages to get link preview if socket event fails
+  const fetchLinkPreviewFallback = async (messageId, delay = 3000) => {
+    setTimeout(async () => {
+      try {
+        // Check if message already has link preview
+        const currentMsg = messages.find(m => m._id === messageId);
+        if (currentMsg?.linkPreview) {
+          console.log('[ConversationView] Link preview already present, skipping fallback');
+          return;
+        }
+
+        console.log('[ConversationView] Fallback: fetching messages for link preview');
+        const response = isGroupChat
+          ? await messageAPI.getGroupMessages(groupId)
+          : await messageAPI.getDMMessages(userId);
+
+        const fetchedMessages = response.data.data.messages;
+        const updatedMsg = fetchedMessages.find(m => m._id === messageId);
+
+        if (updatedMsg?.linkPreview) {
+          console.log('[ConversationView] Fallback: found link preview, updating state');
+          setMessages(prev => prev.map(msg =>
+            msg._id === messageId ? { ...msg, linkPreview: updatedMsg.linkPreview } : msg
+          ));
+        } else {
+          console.log('[ConversationView] Fallback: no link preview found yet');
+        }
+      } catch (err) {
+        console.error('[ConversationView] Fallback fetch error:', err);
+      }
+    }, delay);
+  };
+
   const handleSendMessage = async (e) => {
     e?.preventDefault();
 
@@ -618,6 +657,11 @@ function ConversationView() {
         // Send group message via socket with file support
         const message = await sendGroupMessage(groupId, content, selectedFile);
         // Note: The message will be added via the group:message:receive event
+
+        // If message contains URL, schedule fallback fetch
+        if (content && containsUrl(content)) {
+          fetchLinkPreviewFallback(message._id);
+        }
       } else {
         // Stop typing indicator
         stopTyping(userId);
@@ -627,6 +671,11 @@ function ConversationView() {
 
         // Add to local state for DM
         setMessages(prev => [...prev, message]);
+
+        // If message contains URL, schedule fallback fetch
+        if (content && containsUrl(content)) {
+          fetchLinkPreviewFallback(message._id);
+        }
       }
 
       setNewMessage('');
