@@ -315,6 +315,20 @@ export const messageAPI = {
    * Get unread message count
    */
   getUnreadCount: () => api.get('/messages/unread'),
+
+  /**
+   * Add a reaction to a message
+   * @param {string} messageId - Message ID
+   * @param {string} emoji - Emoji to add
+   */
+  addReaction: (messageId, emoji) => api.post(`/messages/${messageId}/reactions`, { emoji }),
+
+  /**
+   * Remove a reaction from a message
+   * @param {string} messageId - Message ID
+   * @param {string} emoji - Emoji to remove
+   */
+  removeReaction: (messageId, emoji) => api.delete(`/messages/${messageId}/reactions`, { data: { emoji } }),
 };
 
 // =============================================================================

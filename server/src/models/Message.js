@@ -76,6 +76,23 @@ const messageSchema = new mongoose.Schema(
       },
     }],
 
+    // Reactions to this message (emoji reactions like Slack/Discord)
+    reactions: [{
+      emoji: {
+        type: String,
+        required: true,
+      },
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
+
     // Soft delete - don't actually remove messages
     deleted: {
       type: Boolean,
@@ -138,6 +155,50 @@ messageSchema.methods.markAsRead = function(userId) {
   }
 
   return this.save();
+};
+
+// Add a reaction to the message
+messageSchema.methods.addReaction = function(userId, emoji) {
+  // Check if user already reacted with this emoji
+  const existingReaction = this.reactions.find(
+    r => r.user.toString() === userId.toString() && r.emoji === emoji
+  );
+
+  if (existingReaction) {
+    // User already reacted with this emoji - no change needed
+    return this;
+  }
+
+  // Add the reaction
+  this.reactions.push({ user: userId, emoji, createdAt: new Date() });
+  return this.save();
+};
+
+// Remove a reaction from the message
+messageSchema.methods.removeReaction = function(userId, emoji) {
+  const reactionIndex = this.reactions.findIndex(
+    r => r.user.toString() === userId.toString() && r.emoji === emoji
+  );
+
+  if (reactionIndex > -1) {
+    this.reactions.splice(reactionIndex, 1);
+    return this.save();
+  }
+
+  return this;
+};
+
+// Toggle a reaction (add if not exists, remove if exists)
+messageSchema.methods.toggleReaction = function(userId, emoji) {
+  const existingReaction = this.reactions.find(
+    r => r.user.toString() === userId.toString() && r.emoji === emoji
+  );
+
+  if (existingReaction) {
+    return this.removeReaction(userId, emoji);
+  } else {
+    return this.addReaction(userId, emoji);
+  }
 };
 
 // =============================================================================

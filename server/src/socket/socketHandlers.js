@@ -309,6 +309,70 @@ export const setupSocketHandlers = (io) => {
     });
 
     // -------------------------------------------------------------------------
+    // REACTIONS
+    // -------------------------------------------------------------------------
+    // Handle message reactions in real-time
+    // -------------------------------------------------------------------------
+
+    socket.on('reaction:toggle', async (data, callback) => {
+      try {
+        const { messageId, emoji } = data;
+
+        if (!messageId || !emoji) {
+          return callback?.({ error: 'Message ID and emoji are required' });
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          return callback?.({ error: 'Message not found' });
+        }
+
+        // Verify user can react to this message
+        if (message.group) {
+          const group = await Group.findById(message.group);
+          if (!group || !group.isMember(user._id)) {
+            return callback?.({ error: 'You cannot react to messages in this group' });
+          }
+        } else if (message.recipient) {
+          const isSender = message.sender.toString() === user._id.toString();
+          const isRecipient = message.recipient.toString() === user._id.toString();
+          if (!isSender && !isRecipient) {
+            return callback?.({ error: 'You cannot react to this message' });
+          }
+        }
+
+        // Toggle the reaction
+        await message.toggleReaction(user._id, emoji);
+
+        // Fetch updated message with populated reactions
+        const updatedMessage = await Message.findById(messageId)
+          .populate('reactions.user', 'username displayName');
+
+        const reactionData = {
+          messageId,
+          reactions: updatedMessage.reactions,
+        };
+
+        // Broadcast to appropriate recipients
+        if (message.group) {
+          // Send to all group members
+          io.to(`group:${message.group}`).emit('reaction:updated', reactionData);
+        } else {
+          // Send to both DM participants
+          io.to(message.sender.toString()).emit('reaction:updated', reactionData);
+          io.to(message.recipient.toString()).emit('reaction:updated', reactionData);
+        }
+
+        callback?.({ success: true, reactions: updatedMessage.reactions });
+
+        console.log(`[Socket] ${user.username} toggled ${emoji} on message ${messageId}`);
+      } catch (error) {
+        console.error('[Socket] Reaction toggle error:', error);
+        callback?.({ error: 'Failed to toggle reaction' });
+      }
+    });
+
+    // -------------------------------------------------------------------------
     // DISCONNECT
     // -------------------------------------------------------------------------
 

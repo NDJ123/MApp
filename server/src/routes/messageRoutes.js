@@ -18,6 +18,8 @@ import {
   markDMAsRead,
   getUnreadCount,
   getGroupMessages,
+  addReaction,
+  removeReaction,
 } from '../controllers/messageController.js';
 
 const router = express.Router();
@@ -34,5 +36,9 @@ router.get('/group/:groupId', getGroupMessages);
 
 // Unread count
 router.get('/unread', getUnreadCount);
+
+// Reaction routes
+router.post('/:messageId/reactions', addReaction);
+router.delete('/:messageId/reactions', removeReaction);
 
 export default router;

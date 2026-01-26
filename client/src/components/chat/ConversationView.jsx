@@ -20,25 +20,139 @@ import { messageAPI, userAPI, groupAPI } from '../../services/api';
 import Spinner from '../common/Spinner';
 
 // =============================================================================
+// COMMON EMOJIS FOR REACTIONS
+// =============================================================================
+
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+
+// =============================================================================
+// EMOJI PICKER COMPONENT
+// =============================================================================
+
+function EmojiPicker({ onSelect, onClose }) {
+  return (
+    <div className="absolute bottom-full mb-2 left-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg p-2 z-50">
+      <div className="flex gap-1">
+        {REACTION_EMOJIS.map((emoji) => (
+          <button
+            key={emoji}
+            onClick={() => {
+              onSelect(emoji);
+              onClose();
+            }}
+            className="w-8 h-8 flex items-center justify-center hover:bg-[var(--color-surface-hover)] rounded text-lg transition-colors"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// REACTIONS DISPLAY COMPONENT
+// =============================================================================
+
+function ReactionsDisplay({ reactions, currentUserId, onReactionClick }) {
+  if (!reactions || reactions.length === 0) return null;
+
+  // Group reactions by emoji
+  const grouped = reactions.reduce((acc, reaction) => {
+    if (!acc[reaction.emoji]) {
+      acc[reaction.emoji] = [];
+    }
+    acc[reaction.emoji].push(reaction);
+    return acc;
+  }, {});
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {Object.entries(grouped).map(([emoji, users]) => {
+        const hasUserReacted = users.some(
+          r => r.user?._id === currentUserId || r.user === currentUserId
+        );
+        return (
+          <button
+            key={emoji}
+            onClick={() => onReactionClick(emoji)}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-colors ${
+              hasUserReacted
+                ? 'bg-[var(--color-primary)] bg-opacity-20 border-[var(--color-primary)]'
+                : 'bg-[var(--color-surface)] border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]'
+            }`}
+            title={users.map(r => r.user?.displayName || r.user?.username).join(', ')}
+          >
+            <span>{emoji}</span>
+            <span className="text-xs">{users.length}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// =============================================================================
 // MESSAGE BUBBLE COMPONENT
 // =============================================================================
 
-function MessageBubble({ message, isOwnMessage, showAvatar }) {
+function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onToggleReaction }) {
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showReactionButton, setShowReactionButton] = useState(false);
+
   const initial = (message.sender?.displayName || message.sender?.username || '?')[0].toUpperCase();
   const time = new Date(message.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
 
+  const handleReactionClick = (emoji) => {
+    onToggleReaction(message._id, emoji);
+  };
+
   if (isOwnMessage) {
     return (
-      <div className="flex justify-end mb-3">
+      <div
+        className="flex justify-end mb-3 relative"
+        onMouseEnter={() => setShowReactionButton(true)}
+        onMouseLeave={() => {
+          setShowReactionButton(false);
+          setShowEmojiPicker(false);
+        }}
+      >
         <div className="max-w-[70%]">
           <div className="flex items-baseline gap-2 justify-end mb-1">
             <span className="text-xs text-[var(--color-text-tertiary)]">{time}</span>
           </div>
-          <div className="bg-[var(--color-primary)] text-white rounded-lg px-4 py-2">
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          <div className="relative">
+            <div className="bg-[var(--color-primary)] text-white rounded-lg px-4 py-2">
+              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            </div>
+            {/* Reaction button */}
+            {showReactionButton && (
+              <div className="absolute -left-8 top-1/2 -translate-y-1/2">
+                <button
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
+                >
+                  😊
+                </button>
+                {showEmojiPicker && (
+                  <EmojiPicker
+                    onSelect={(emoji) => handleReactionClick(emoji)}
+                    onClose={() => setShowEmojiPicker(false)}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+          {/* Reactions display */}
+          <div className="flex justify-end">
+            <ReactionsDisplay
+              reactions={message.reactions}
+              currentUserId={currentUserId}
+              onReactionClick={handleReactionClick}
+            />
           </div>
         </div>
       </div>
@@ -46,7 +160,14 @@ function MessageBubble({ message, isOwnMessage, showAvatar }) {
   }
 
   return (
-    <div className="flex gap-3 mb-3">
+    <div
+      className="flex gap-3 mb-3"
+      onMouseEnter={() => setShowReactionButton(true)}
+      onMouseLeave={() => {
+        setShowReactionButton(false);
+        setShowEmojiPicker(false);
+      }}
+    >
       {showAvatar ? (
         <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex-shrink-0 flex items-center justify-center text-white text-sm font-medium">
           {message.sender?.avatar ? (
@@ -71,9 +192,34 @@ function MessageBubble({ message, isOwnMessage, showAvatar }) {
             <span className="text-xs text-[var(--color-text-tertiary)]">{time}</span>
           </div>
         )}
-        <div className="bg-[var(--color-surface)] rounded-lg px-4 py-2">
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        <div className="relative">
+          <div className="bg-[var(--color-surface)] rounded-lg px-4 py-2">
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          </div>
+          {/* Reaction button */}
+          {showReactionButton && (
+            <div className="absolute -right-8 top-1/2 -translate-y-1/2">
+              <button
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
+              >
+                😊
+              </button>
+              {showEmojiPicker && (
+                <EmojiPicker
+                  onSelect={(emoji) => handleReactionClick(emoji)}
+                  onClose={() => setShowEmojiPicker(false)}
+                />
+              )}
+            </div>
+          )}
         </div>
+        {/* Reactions display */}
+        <ReactionsDisplay
+          reactions={message.reactions}
+          currentUserId={currentUserId}
+          onReactionClick={handleReactionClick}
+        />
       </div>
     </div>
   );
@@ -87,7 +233,7 @@ function ConversationView() {
   const { userId, groupId } = useParams();
   const location = useLocation();
   const { user: currentUser } = useAuth();
-  const { socket, sendMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping } = useSocket();
+  const { socket, sendMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction } = useSocket();
 
   // Determine conversation type
   const isGroupChat = location.pathname.includes('/group/');
@@ -238,6 +384,15 @@ function ConversationView() {
       );
     }
 
+    // Listen for reaction updates (both DM and group)
+    unsubscribers.push(
+      subscribe('reaction:updated', ({ messageId, reactions }) => {
+        setMessages(prev => prev.map(msg =>
+          msg._id === messageId ? { ...msg, reactions } : msg
+        ));
+      })
+    );
+
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
@@ -331,6 +486,19 @@ function ConversationView() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // HANDLE REACTION TOGGLE
+  // ---------------------------------------------------------------------------
+
+  const handleToggleReaction = async (messageId, emoji) => {
+    try {
+      await toggleReaction(messageId, emoji);
+      // The reaction update will come through the socket event
+    } catch (err) {
+      console.error('Failed to toggle reaction:', err);
     }
   };
 
@@ -462,6 +630,8 @@ function ConversationView() {
                   message={message}
                   isOwnMessage={isOwnMessage}
                   showAvatar={showAvatar}
+                  currentUserId={currentUser._id}
+                  onToggleReaction={handleToggleReaction}
                 />
               );
             })}

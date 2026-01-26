@@ -148,6 +148,27 @@ export function SocketProvider({ children }) {
   }, [socket, isConnected]);
 
   // ---------------------------------------------------------------------------
+  // TOGGLE REACTION
+  // ---------------------------------------------------------------------------
+
+  const toggleReaction = useCallback((messageId, emoji) => {
+    return new Promise((resolve, reject) => {
+      if (!socket || !isConnected) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socket.emit('reaction:toggle', { messageId, emoji }, (response) => {
+        if (response.error) {
+          reject(new Error(response.error));
+        } else {
+          resolve(response.reactions);
+        }
+      });
+    });
+  }, [socket, isConnected]);
+
+  // ---------------------------------------------------------------------------
   // CHECK IF USER IS ONLINE
   // ---------------------------------------------------------------------------
 
@@ -178,6 +199,7 @@ export function SocketProvider({ children }) {
     startTyping,
     stopTyping,
     markAsRead,
+    toggleReaction,
     isUserOnline,
     subscribe,
   };

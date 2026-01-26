@@ -50,6 +50,7 @@ export const getDMMessages = async (req, res, next) => {
       .skip(skip)
       .limit(limit)
       .populate('sender', 'username displayName avatar')
+      .populate('reactions.user', 'username displayName')
       .lean();
 
     // Reverse to show oldest first in the UI
@@ -193,6 +194,7 @@ export const getGroupMessages = async (req, res, next) => {
       .skip(skip)
       .limit(limit)
       .populate('sender', 'username displayName avatar')
+      .populate('reactions.user', 'username displayName')
       .lean();
 
     // Reverse to show oldest first in the UI
@@ -220,6 +222,118 @@ export const getGroupMessages = async (req, res, next) => {
           pages: Math.ceil(total / limit),
           hasMore: skip + messages.length < total,
         },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =============================================================================
+// ADD REACTION
+// =============================================================================
+// POST /api/messages/:messageId/reactions
+// Add a reaction to a message
+// =============================================================================
+
+export const addReaction = async (req, res, next) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const currentUserId = req.user._id;
+
+    if (!emoji) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Emoji is required',
+      });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Message not found',
+      });
+    }
+
+    // Check if user has permission to react (is in the conversation)
+    if (message.group) {
+      const group = await Group.findById(message.group);
+      if (!group || !group.isMember(currentUserId)) {
+        return res.status(403).json({
+          status: 'error',
+          message: 'You cannot react to messages in this group',
+        });
+      }
+    } else if (message.recipient) {
+      // For DMs, check if user is sender or recipient
+      const isSender = message.sender.toString() === currentUserId.toString();
+      const isRecipient = message.recipient.toString() === currentUserId.toString();
+      if (!isSender && !isRecipient) {
+        return res.status(403).json({
+          status: 'error',
+          message: 'You cannot react to this message',
+        });
+      }
+    }
+
+    // Toggle reaction
+    await message.toggleReaction(currentUserId, emoji);
+
+    // Fetch updated message with populated reactions
+    const updatedMessage = await Message.findById(messageId)
+      .populate('reactions.user', 'username displayName');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        reactions: updatedMessage.reactions,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =============================================================================
+// REMOVE REACTION
+// =============================================================================
+// DELETE /api/messages/:messageId/reactions
+// Remove a reaction from a message
+// =============================================================================
+
+export const removeReaction = async (req, res, next) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const currentUserId = req.user._id;
+
+    if (!emoji) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Emoji is required',
+      });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Message not found',
+      });
+    }
+
+    await message.removeReaction(currentUserId, emoji);
+
+    // Fetch updated message with populated reactions
+    const updatedMessage = await Message.findById(messageId)
+      .populate('reactions.user', 'username displayName');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        reactions: updatedMessage.reactions,
       },
     });
   } catch (error) {
