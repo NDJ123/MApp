@@ -261,17 +261,13 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
     return (
       <div
         className="flex justify-end mb-3 group"
-        onMouseEnter={() => setShowActions(true)}
-        onMouseLeave={() => {
-          setShowActions(false);
-          setShowEmojiPicker(false);
-        }}
+        onMouseLeave={() => setShowEmojiPicker(false)}
       >
         <div className="max-w-[70%]">
           <div className="flex items-center gap-2 justify-end mb-1">
-            {/* Action buttons - always visible for debugging */}
+            {/* Action buttons - appear on hover via CSS */}
             {!isEditing && (
-              <div className="flex gap-1">
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {canEdit && (
                   <button
                     onClick={() => setIsEditing(true)}
