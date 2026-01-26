@@ -109,6 +109,22 @@ const userSchema = new mongoose.Schema(
       // null for the first user(s) created manually
     },
 
+    // Users this user has blocked (won't receive their messages)
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+
+    // Users this user has muted (messages come through but no notifications)
+    mutedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+
     // -------------------------------------------------------------------------
     // PASSWORD RESET FIELDS
     // -------------------------------------------------------------------------
@@ -205,6 +221,24 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   // bcrypt.compare handles the salt extraction and comparison
   // It returns true if the password matches, false otherwise
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+/**
+ * Check if this user has blocked another user
+ * @param {ObjectId} userId - The user ID to check
+ * @returns {boolean}
+ */
+userSchema.methods.hasBlocked = function (userId) {
+  return this.blockedUsers.some((id) => id.toString() === userId.toString());
+};
+
+/**
+ * Check if this user has muted another user
+ * @param {ObjectId} userId - The user ID to check
+ * @returns {boolean}
+ */
+userSchema.methods.hasMuted = function (userId) {
+  return this.mutedUsers.some((id) => id.toString() === userId.toString());
 };
 
 /**

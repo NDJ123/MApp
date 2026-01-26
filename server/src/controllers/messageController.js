@@ -34,6 +34,10 @@ export const getDMMessages = async (req, res, next) => {
       });
     }
 
+    // Check if user has blocked the other user
+    const currentUser = await User.findById(currentUserId);
+    const isBlocked = currentUser.hasBlocked(otherUserId);
+
     // Generate conversation ID
     const conversationId = Message.getDMConversationId(currentUserId, otherUserId);
 
@@ -75,6 +79,7 @@ export const getDMMessages = async (req, res, next) => {
       status: 'success',
       data: {
         messages,
+        isBlocked,
         pagination: {
           page,
           limit,

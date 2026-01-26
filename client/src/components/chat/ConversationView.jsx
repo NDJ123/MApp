@@ -17,6 +17,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { messageAPI, userAPI, groupAPI } from '../../services/api';
+import { useNotifications } from '../../context/NotificationContext';
 import Spinner from '../common/Spinner';
 
 // =============================================================================
@@ -543,6 +544,7 @@ function ConversationView() {
   const location = useLocation();
   const { user: currentUser } = useAuth();
   const { socket, sendMessage, sendGroupMessage, subscribe, isConnected, markAsRead, startTyping, stopTyping, toggleReaction, editMessage, deleteMessage, isUserOnline } = useSocket();
+  const { updateMutedUser } = useNotifications();
 
   // Determine conversation type
   const isGroupChat = location.pathname.includes('/group/');
@@ -568,6 +570,11 @@ function ConversationView() {
   const [isSearching, setIsSearching] = useState(false);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+
+  // Block/mute state
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
   // Refs
   const messagesEndRef = useRef(null);
@@ -711,8 +718,11 @@ function ConversationView() {
             messageAPI.getDMMessages(userId),
           ]);
 
-          setOtherUser(userResponse.data.data.user);
+          const userData = userResponse.data.data.user;
+          setOtherUser(userData);
           setMessages(messagesResponse.data.data.messages);
+          setIsBlocked(userData.isBlocked || false);
+          setIsMuted(userData.isMuted || false);
 
           // Mark messages as read for DMs
           markAsRead(userId);
@@ -924,6 +934,44 @@ function ConversationView() {
         }
       }
     }, delay);
+  };
+
+  // ---------------------------------------------------------------------------
+  // BLOCK/MUTE HANDLERS
+  // ---------------------------------------------------------------------------
+
+  const handleBlockToggle = async () => {
+    if (!otherUser) return;
+    try {
+      if (isBlocked) {
+        await userAPI.unblock(otherUser._id);
+        setIsBlocked(false);
+      } else {
+        await userAPI.block(otherUser._id);
+        setIsBlocked(true);
+      }
+      setShowUserMenu(false);
+    } catch (err) {
+      console.error('Failed to toggle block:', err);
+    }
+  };
+
+  const handleMuteToggle = async () => {
+    if (!otherUser) return;
+    try {
+      if (isMuted) {
+        await userAPI.unmute(otherUser._id);
+        setIsMuted(false);
+        updateMutedUser(otherUser._id, false);
+      } else {
+        await userAPI.mute(otherUser._id);
+        setIsMuted(true);
+        updateMutedUser(otherUser._id, true);
+      }
+      setShowUserMenu(false);
+    } catch (err) {
+      console.error('Failed to toggle mute:', err);
+    }
   };
 
   const handleSendMessage = async (e) => {
@@ -1167,20 +1215,96 @@ function ConversationView() {
             </p>
           </div>
         </div>
-        {/* Search button */}
-        <button
-          onClick={() => setShowSearch(!showSearch)}
-          className={`p-2 rounded-lg transition-colors ${
-            showSearch
-              ? 'bg-[var(--color-primary)] text-white'
-              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]'
-          }`}
-          title="Search messages"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Muted indicator */}
+          {!isGroupChat && isMuted && (
+            <span className="px-2 py-1 text-xs bg-yellow-500 bg-opacity-20 text-yellow-600 dark:text-yellow-400 rounded">
+              Muted
+            </span>
+          )}
+          {/* Search button */}
+          <button
+            onClick={() => setShowSearch(!showSearch)}
+            className={`p-2 rounded-lg transition-colors ${
+              showSearch
+                ? 'bg-[var(--color-primary)] text-white'
+                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]'
+            }`}
+            title="Search messages"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          {/* User menu for DMs */}
+          {!isGroupChat && otherUser && (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors"
+                title="More options"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
+              {/* Dropdown menu */}
+              {showUserMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowUserMenu(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg z-50 py-1">
+                    <button
+                      onClick={handleMuteToggle}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)] transition-colors flex items-center gap-2"
+                    >
+                      {isMuted ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                          </svg>
+                          Unmute
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                          </svg>
+                          Mute
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleBlockToggle}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)] transition-colors flex items-center gap-2 ${
+                        isBlocked ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {isBlocked ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Unblock
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                          </svg>
+                          Block
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Search bar */}
@@ -1360,47 +1484,63 @@ function ConversationView() {
 
       {/* Message input */}
       <div className={`p-4 ${selectedFile || replyingTo ? '' : 'border-t border-[var(--color-border)]'} flex-shrink-0`}>
-        <form onSubmit={handleSendMessage} className="flex items-end gap-2">
-          {/* File upload button */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            className="hidden"
-            accept="image/*,.pdf,.doc,.docx,.txt,.zip"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!isConnected || isSending}
-            className="p-3 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface)] rounded-lg transition-colors disabled:opacity-50"
-            title="Attach file"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+        {/* Blocked state */}
+        {!isGroupChat && isBlocked ? (
+          <div className="flex items-center justify-center gap-2 py-3 px-4 bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 rounded-lg text-red-600 dark:text-red-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
-          </button>
-          <textarea
-            value={newMessage}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
-            rows={1}
-            disabled={!isConnected || isSending}
-            className="flex-1 px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={(!newMessage.trim() && !selectedFile) || !isConnected || isSending}
-            className="px-4 py-3 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSending ? (
-              <Spinner size="small" />
-            ) : (
-              'Send'
-            )}
-          </button>
-        </form>
+            <span>You have blocked this user.</span>
+            <button
+              onClick={handleBlockToggle}
+              className="ml-2 underline hover:no-underline"
+            >
+              Unblock
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+            {/* File upload button */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              className="hidden"
+              accept="image/*,.pdf,.doc,.docx,.txt,.zip"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!isConnected || isSending}
+              className="p-3 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface)] rounded-lg transition-colors disabled:opacity-50"
+              title="Attach file"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+            </button>
+            <textarea
+              value={newMessage}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Type a message..."
+              rows={1}
+              disabled={!isConnected || isSending}
+              className="flex-1 px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={(!newMessage.trim() && !selectedFile) || !isConnected || isSending}
+              className="px-4 py-3 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSending ? (
+                <Spinner size="small" />
+              ) : (
+                'Send'
+              )}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

@@ -251,6 +251,35 @@ export const userAPI = {
    * @param {Object} data - { displayName, avatar }
    */
   updateProfile: (data) => api.put('/users/profile', data),
+
+  /**
+   * Block a user
+   * @param {string} userId - User ID to block
+   */
+  block: (userId) => api.post(`/users/${userId}/block`),
+
+  /**
+   * Unblock a user
+   * @param {string} userId - User ID to unblock
+   */
+  unblock: (userId) => api.delete(`/users/${userId}/block`),
+
+  /**
+   * Mute a user
+   * @param {string} userId - User ID to mute
+   */
+  mute: (userId) => api.post(`/users/${userId}/mute`),
+
+  /**
+   * Unmute a user
+   * @param {string} userId - User ID to unmute
+   */
+  unmute: (userId) => api.delete(`/users/${userId}/mute`),
+
+  /**
+   * Get blocked and muted users lists
+   */
+  getBlockedAndMuted: () => api.get('/users/blocked-muted'),
 };
 
 // =============================================================================

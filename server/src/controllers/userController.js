@@ -96,12 +96,18 @@ export const getUserById = asyncHandler(async (req, res) => {
     (contactId) => contactId.toString() === id
   );
 
+  // Check if blocked or muted
+  const isBlocked = req.user.hasBlocked(id);
+  const isMuted = req.user.hasMuted(id);
+
   res.status(200).json({
     status: 'success',
     data: {
       user: {
         ...user.toJSON(),
         isContact,
+        isBlocked,
+        isMuted,
       },
     },
   });
@@ -174,9 +180,157 @@ export const searchUsers = asyncHandler(async (req, res) => {
   });
 });
 
+// =============================================================================
+// BLOCK USER
+// =============================================================================
+// POST /api/users/:id/block
+// Block a user - won't receive their messages
+// =============================================================================
+
+export const blockUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (id === req.userId.toString()) {
+    throw new AppError('You cannot block yourself', 400);
+  }
+
+  // Verify target user exists
+  const targetUser = await User.findById(id);
+  if (!targetUser) {
+    throw new AppError('User not found', 404);
+  }
+
+  // Add to blocked list if not already blocked
+  const user = await User.findById(req.userId);
+  if (user.hasBlocked(id)) {
+    throw new AppError('User is already blocked', 400);
+  }
+
+  user.blockedUsers.push(id);
+  await user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User blocked',
+  });
+});
+
+// =============================================================================
+// UNBLOCK USER
+// =============================================================================
+// DELETE /api/users/:id/block
+// Unblock a user
+// =============================================================================
+
+export const unblockUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const user = await User.findById(req.userId);
+  if (!user.hasBlocked(id)) {
+    throw new AppError('User is not blocked', 400);
+  }
+
+  user.blockedUsers = user.blockedUsers.filter(
+    (blockedId) => blockedId.toString() !== id
+  );
+  await user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User unblocked',
+  });
+});
+
+// =============================================================================
+// MUTE USER
+// =============================================================================
+// POST /api/users/:id/mute
+// Mute a user - still receive messages but no notifications
+// =============================================================================
+
+export const muteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (id === req.userId.toString()) {
+    throw new AppError('You cannot mute yourself', 400);
+  }
+
+  // Verify target user exists
+  const targetUser = await User.findById(id);
+  if (!targetUser) {
+    throw new AppError('User not found', 404);
+  }
+
+  // Add to muted list if not already muted
+  const user = await User.findById(req.userId);
+  if (user.hasMuted(id)) {
+    throw new AppError('User is already muted', 400);
+  }
+
+  user.mutedUsers.push(id);
+  await user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User muted',
+  });
+});
+
+// =============================================================================
+// UNMUTE USER
+// =============================================================================
+// DELETE /api/users/:id/mute
+// Unmute a user
+// =============================================================================
+
+export const unmuteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const user = await User.findById(req.userId);
+  if (!user.hasMuted(id)) {
+    throw new AppError('User is not muted', 400);
+  }
+
+  user.mutedUsers = user.mutedUsers.filter(
+    (mutedId) => mutedId.toString() !== id
+  );
+  await user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User unmuted',
+  });
+});
+
+// =============================================================================
+// GET BLOCKED AND MUTED USERS
+// =============================================================================
+// GET /api/users/blocked-muted
+// Get current user's blocked and muted user lists
+// =============================================================================
+
+export const getBlockedAndMuted = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.userId)
+    .populate('blockedUsers', 'username displayName avatar')
+    .populate('mutedUsers', 'username displayName avatar');
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      blockedUsers: user.blockedUsers,
+      mutedUsers: user.mutedUsers,
+    },
+  });
+});
+
 export default {
   getAllUsers,
   getUserById,
   updateProfile,
   searchUsers,
+  blockUser,
+  unblockUser,
+  muteUser,
+  unmuteUser,
+  getBlockedAndMuted,
 };

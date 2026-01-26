@@ -10,6 +10,11 @@ import {
   getUserById,
   updateProfile,
   searchUsers,
+  blockUser,
+  unblockUser,
+  muteUser,
+  unmuteUser,
+  getBlockedAndMuted,
 } from '../controllers/userController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -43,10 +48,45 @@ router.get('/search', searchUsers);
 router.put('/profile', updateProfile);
 
 /**
+ * @route   GET /api/users/blocked-muted
+ * @desc    Get blocked and muted users lists
+ * @access  Private
+ */
+router.get('/blocked-muted', getBlockedAndMuted);
+
+/**
  * @route   GET /api/users/:id
  * @desc    Get user by ID
  * @access  Private
  */
 router.get('/:id', getUserById);
+
+/**
+ * @route   POST /api/users/:id/block
+ * @desc    Block a user
+ * @access  Private
+ */
+router.post('/:id/block', blockUser);
+
+/**
+ * @route   DELETE /api/users/:id/block
+ * @desc    Unblock a user
+ * @access  Private
+ */
+router.delete('/:id/block', unblockUser);
+
+/**
+ * @route   POST /api/users/:id/mute
+ * @desc    Mute a user
+ * @access  Private
+ */
+router.post('/:id/mute', muteUser);
+
+/**
+ * @route   DELETE /api/users/:id/mute
+ * @desc    Unmute a user
+ * @access  Private
+ */
+router.delete('/:id/mute', unmuteUser);
 
 export default router;

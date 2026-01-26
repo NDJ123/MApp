@@ -111,6 +111,16 @@ export const setupSocketHandlers = (io) => {
           return callback?.({ error: 'Recipient not found' });
         }
 
+        // Check if sender is blocked by recipient
+        if (recipient.hasBlocked(user._id)) {
+          return callback?.({ error: 'Cannot send message to this user' });
+        }
+
+        // Check if sender has blocked recipient
+        if (user.blockedUsers?.some((id) => id.toString() === recipientId.toString())) {
+          return callback?.({ error: 'You have blocked this user' });
+        }
+
         // Validate file if present
         if (file) {
           if (!file.url || !file.name || !file.mimeType) {
@@ -178,8 +188,11 @@ export const setupSocketHandlers = (io) => {
           createdAt: message.createdAt,
         };
 
-        // Send to recipient (if online)
-        io.to(recipientId.toString()).emit('message:receive', messageData);
+        // Send to recipient (if online and hasn't blocked sender)
+        const recipientUser = await User.findById(recipientId);
+        if (!recipientUser.hasBlocked(user._id)) {
+          io.to(recipientId.toString()).emit('message:receive', messageData);
+        }
 
         // Send back to sender for confirmation
         callback?.({ success: true, message: messageData });

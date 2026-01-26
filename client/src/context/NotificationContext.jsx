@@ -14,6 +14,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
+import { userAPI } from '../services/api';
 
 // Create the context
 const NotificationContext = createContext(null);
@@ -44,6 +45,43 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     locationRef.current = location.pathname;
   }, [location.pathname]);
+
+  // Track muted users to suppress their notifications
+  const mutedUsersRef = useRef(new Set());
+
+  // Fetch muted users list
+  useEffect(() => {
+    if (!user) {
+      mutedUsersRef.current = new Set();
+      return;
+    }
+
+    const fetchMutedUsers = async () => {
+      try {
+        const response = await userAPI.getBlockedAndMuted();
+        const mutedIds = (response.data.data.mutedUsers || []).map(u => u._id);
+        mutedUsersRef.current = new Set(mutedIds);
+      } catch (error) {
+        console.error('Failed to fetch muted users:', error);
+      }
+    };
+
+    fetchMutedUsers();
+  }, [user]);
+
+  // Function to check if a user is muted
+  const isUserMuted = useCallback((userId) => {
+    return mutedUsersRef.current.has(userId);
+  }, []);
+
+  // Function to update muted users (called from ConversationView when muting/unmuting)
+  const updateMutedUser = useCallback((userId, isMuted) => {
+    if (isMuted) {
+      mutedUsersRef.current.add(userId);
+    } else {
+      mutedUsersRef.current.delete(userId);
+    }
+  }, []);
 
   // ---------------------------------------------------------------------------
   // REQUEST PERMISSION
@@ -148,6 +186,9 @@ export function NotificationProvider({ children }) {
       // Don't notify if viewing this conversation
       if (isViewingConversation('dm', senderId)) return;
 
+      // Don't notify if user is muted
+      if (isUserMuted(senderId)) return;
+
       const senderName = message.sender?.displayName || message.sender?.username || 'Someone';
       const body = message.messageType === 'file'
         ? 'Sent a file'
@@ -180,6 +221,9 @@ export function NotificationProvider({ children }) {
       const groupId = message.group?._id || message.group;
       if (isViewingConversation('group', groupId)) return;
 
+      // Don't notify if user is muted
+      if (isUserMuted(senderId)) return;
+
       const senderName = message.sender?.displayName || message.sender?.username || 'Someone';
       const groupName = message.group?.name || 'Group';
       const body = message.messageType === 'file'
@@ -207,7 +251,7 @@ export function NotificationProvider({ children }) {
       unsubscribeDM();
       unsubscribeGroup();
     };
-  }, [user, subscribe, showNotification, isViewingConversation, navigate]);
+  }, [user, subscribe, showNotification, isViewingConversation, navigate, isUserMuted]);
 
   // ---------------------------------------------------------------------------
   // AUTO-REQUEST PERMISSION ON FIRST LOAD
@@ -233,6 +277,7 @@ export function NotificationProvider({ children }) {
     requestPermission,
     toggleNotifications,
     showNotification,
+    updateMutedUser,
   };
 
   return (
