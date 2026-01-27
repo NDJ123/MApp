@@ -18,6 +18,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ContactProvider } from './context/ContactContext';
 
 // Page components
 import LandingPage from './components/common/LandingPage';
@@ -36,6 +37,8 @@ function App() {
     <AuthProvider>
       {/* SocketProvider connects to the server for real-time features */}
       <SocketProvider>
+        {/* ContactProvider manages the contact list state */}
+        <ContactProvider>
         {/* NotificationProvider handles desktop notifications */}
         <NotificationProvider>
         <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
@@ -77,6 +80,7 @@ function App() {
           </Routes>
         </div>
         </NotificationProvider>
+        </ContactProvider>
       </SocketProvider>
     </AuthProvider>
   );

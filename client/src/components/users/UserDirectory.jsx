@@ -12,8 +12,9 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { userAPI, contactAPI } from '../../services/api';
+import { userAPI } from '../../services/api';
 import { useSocket } from '../../context/SocketContext';
+import { useContacts } from '../../context/ContactContext';
 import Spinner from '../common/Spinner';
 
 // =============================================================================
@@ -93,7 +94,6 @@ function UserDirectory() {
 
   // User list data
   const [users, setUsers] = useState([]);
-  const [contacts, setContacts] = useState(new Set()); // Set of contact IDs for quick lookup
 
   // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
@@ -111,6 +111,9 @@ function UserDirectory() {
   // Socket context for online status
   const { isUserOnline } = useSocket();
 
+  // Contact context for managing contacts
+  const { isContact, addContact, removeContact } = useContacts();
+
   // -------------------------------------------------------------------------
   // FETCH USERS
   // -------------------------------------------------------------------------
@@ -122,22 +125,12 @@ function UserDirectory() {
       setIsLoading(true);
       setError(null);
 
-      // Fetch users and contacts in parallel
-      const [usersResponse, contactsResponse] = await Promise.all([
-        userAPI.getAll({ search, page: pageNum, limit: 20 }),
-        contactAPI.getAll(),
-      ]);
+      const usersResponse = await userAPI.getAll({ search, page: pageNum, limit: 20 });
 
       // Extract user data
       const { users: userList, pagination: paginationData } = usersResponse.data.data;
       setUsers(userList);
       setPagination(paginationData);
-
-      // Create a Set of contact IDs for quick lookup
-      const contactIds = new Set(
-        contactsResponse.data.data.contacts.map(contact => contact._id)
-      );
-      setContacts(contactIds);
 
     } catch (err) {
       setError(err.message || 'Failed to load users');
@@ -215,10 +208,7 @@ function UserDirectory() {
   const handleAddContact = async (userId) => {
     try {
       setLoadingUserId(userId);
-      await contactAPI.add(userId);
-
-      // Update local state
-      setContacts(prev => new Set([...prev, userId]));
+      await addContact(userId);
     } catch (err) {
       console.error('Error adding contact:', err);
       // Could show a toast notification here
@@ -230,14 +220,7 @@ function UserDirectory() {
   const handleRemoveContact = async (userId) => {
     try {
       setLoadingUserId(userId);
-      await contactAPI.remove(userId);
-
-      // Update local state
-      setContacts(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
-      });
+      await removeContact(userId);
     } catch (err) {
       console.error('Error removing contact:', err);
       // Could show a toast notification here
@@ -319,7 +302,7 @@ function UserDirectory() {
                   <UserCard
                     key={user._id}
                     user={user}
-                    isContact={contacts.has(user._id)}
+                    isContact={isContact(user._id)}
                     isOnline={isUserOnline(user._id)}
                     onAddContact={handleAddContact}
                     onRemoveContact={handleRemoveContact}

@@ -8,11 +8,11 @@
 // - Shows all contacts with avatar and name
 // - Click to open DM
 // - Empty state with link to user directory
+// - Auto-updates when contacts are added/removed via ContactContext
 // =============================================================================
 
-import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { contactAPI } from '../../services/api';
+import { useContacts } from '../../context/ContactContext';
 import { useSocket } from '../../context/SocketContext';
 import Spinner from '../common/Spinner';
 
@@ -68,38 +68,12 @@ function ContactItem({ contact, isActive, isOnline, onClick }) {
 
 function ContactList({ activeContactId, onContactSelect }) {
   // -------------------------------------------------------------------------
-  // STATE
+  // HOOKS
   // -------------------------------------------------------------------------
-
-  const [contacts, setContacts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const navigate = useNavigate();
   const { isUserOnline } = useSocket();
-
-  // -------------------------------------------------------------------------
-  // FETCH CONTACTS
-  // -------------------------------------------------------------------------
-
-  useEffect(() => {
-    const fetchContacts = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const response = await contactAPI.getAll();
-        setContacts(response.data.data.contacts);
-      } catch (err) {
-        setError(err.message || 'Failed to load contacts');
-        console.error('Error fetching contacts:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchContacts();
-  }, []);
+  const { contacts, isLoading, error, fetchContacts } = useContacts();
 
   // -------------------------------------------------------------------------
   // HANDLERS
@@ -133,7 +107,7 @@ function ContactList({ activeContactId, onContactSelect }) {
       <div className="px-3 py-4 text-center">
         <p className="text-xs text-red-500 mb-2">{error}</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={fetchContacts}
           className="text-xs text-[var(--color-primary)] hover:underline"
         >
           Retry
