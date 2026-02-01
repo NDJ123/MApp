@@ -44,6 +44,11 @@ import {
 
 const router = express.Router();
 
+// DEBUG: Test route to verify club routes are loaded
+router.get('/test-routes', (req, res) => {
+  res.json({ status: 'ok', message: 'Club routes are loaded', version: 'v2' });
+});
+
 // All club routes require authentication
 router.use(protect);
 
