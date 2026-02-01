@@ -73,6 +73,12 @@ router.get('/my', getMyClubs);
 // CLUB-SPECIFIC ROUTES
 // =============================================================================
 
+// Switch active club (user must be a member) - MUST be before /:clubId routes
+router.put('/:clubId/switch', switchClub);
+
+// Update own membership status (active/inactive) - MUST be before /:clubId routes
+router.put('/:clubId/membership', updateMembership);
+
 // Get club details (requires membership via clubContext)
 router.get('/:clubId', clubContext, getClub);
 
@@ -81,12 +87,6 @@ router.put('/:clubId', clubContext, requireClubAdmin, updateClub);
 
 // Delete/deactivate club (superadmin only)
 router.delete('/:clubId', clubContext, requireSuperadmin, deleteClub);
-
-// Switch active club (user must be a member)
-router.put('/:clubId/switch', switchClub);
-
-// Update own membership status (active/inactive)
-router.put('/:clubId/membership', updateMembership);
 
 // =============================================================================
 // MEMBER MANAGEMENT ROUTES
