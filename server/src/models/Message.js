@@ -193,7 +193,7 @@ messageSchema.index({ club: 1, group: 1, createdAt: -1 });
 // Always sorts the IDs so the same conversation ID is generated regardless
 // of who initiates the conversation
 // Format: dm_clubId_sortedUserId1_sortedUserId2
-messageSchema.statics.getDMConversationId = function(clubId, userId1, userId2) {
+messageSchema.statics.getDMConversationId = function(userId1, userId2, clubId) {
   const ids = [userId1.toString(), userId2.toString()].sort();
   return `dm_${clubId.toString()}_${ids[0]}_${ids[1]}`;
 };
