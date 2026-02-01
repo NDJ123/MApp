@@ -70,6 +70,9 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Debug: Log user superadmin status
+  console.log('[Sidebar] user.isSuperadmin:', user?.isSuperadmin, 'user:', user);
+
   // Check which page is active
   const isDirectoryActive = location.pathname === '/chat/directory';
   const isInvitesActive = location.pathname === '/chat/invites';
