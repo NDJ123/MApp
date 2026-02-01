@@ -14,6 +14,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
+import { useClub } from './ClubContext';
 import { userAPI } from '../services/api';
 
 // Create the context
@@ -25,6 +26,7 @@ const NotificationContext = createContext(null);
 
 export function NotificationProvider({ children }) {
   const { user } = useAuth();
+  const { activeClubId } = useClub();
   const { subscribe } = useSocket();
   const location = useLocation();
   const navigate = useNavigate();
@@ -51,7 +53,7 @@ export function NotificationProvider({ children }) {
 
   // Fetch muted users list
   useEffect(() => {
-    if (!user) {
+    if (!user || !activeClubId) {
       mutedUsersRef.current = new Set();
       return;
     }
@@ -67,7 +69,7 @@ export function NotificationProvider({ children }) {
     };
 
     fetchMutedUsers();
-  }, [user]);
+  }, [user, activeClubId]);
 
   // Function to check if a user is muted
   const isUserMuted = useCallback((userId) => {

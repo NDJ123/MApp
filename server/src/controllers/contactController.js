@@ -27,8 +27,9 @@ export const getContacts = asyncHandler(async (req, res) => {
     .populate('contacts.user', 'username displayName avatar');
 
   // Filter contacts to only include those in the current club
+  // Handle case where contact.club might be undefined (legacy data)
   const clubContacts = user.contacts
-    ?.filter((c) => c.club.toString() === clubId.toString())
+    ?.filter((c) => c.club && c.club.toString() === clubId.toString())
     .map((c) => c.user)
     .filter(Boolean) || []; // Filter out any null values
 
@@ -74,7 +75,7 @@ export const addContact = asyncHandler(async (req, res) => {
   // Check if already a contact in this club
   const currentUser = await User.findById(req.userId);
   const isAlreadyContact = currentUser.contacts?.some(
-    (c) => c.user.toString() === userId && c.club.toString() === clubId.toString()
+    (c) => c.club && c.user.toString() === userId && c.club.toString() === clubId.toString()
   );
 
   if (isAlreadyContact) {
@@ -115,7 +116,7 @@ export const removeContact = asyncHandler(async (req, res) => {
 
   // Check if user is in contacts for this club
   const contactIndex = currentUser.contacts?.findIndex(
-    (c) => c.user.toString() === userId && c.club.toString() === clubId.toString()
+    (c) => c.club && c.user.toString() === userId && c.club.toString() === clubId.toString()
   );
 
   if (contactIndex === -1 || contactIndex === undefined) {
@@ -145,7 +146,7 @@ export const checkContact = asyncHandler(async (req, res) => {
 
   const currentUser = await User.findById(req.userId);
   const isContact = currentUser.contacts?.some(
-    (c) => c.user.toString() === userId && c.club.toString() === clubId.toString()
+    (c) => c.club && c.user.toString() === userId && c.club.toString() === clubId.toString()
   ) || false;
 
   res.status(200).json({

@@ -33,6 +33,7 @@ import CreateGroupModal from '../groups/CreateGroupModal';
 import ProfileSettings from '../profile/ProfileSettings';
 import ClubSwitcher from '../clubs/ClubSwitcher';
 import ClubAdminDashboard from '../clubs/ClubAdminDashboard';
+import SuperAdminDashboard from '../superadmin/SuperAdminDashboard';
 
 // =============================================================================
 // MOBILE BREAKPOINT HOOK
@@ -73,9 +74,11 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
   const isDirectoryActive = location.pathname === '/chat/directory';
   const isInvitesActive = location.pathname === '/chat/invites';
   const isAdminActive = location.pathname === '/chat/admin';
+  const isSuperadminActive = location.pathname === '/chat/superadmin';
 
   // Show admin link if user is club admin or superadmin
   const showAdminLink = isClubAdmin || user?.isSuperadmin;
+  const showSuperadminLink = user?.isSuperadmin;
 
   // Handle logout
   const handleLogout = async () => {
@@ -173,6 +176,27 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
             <span className="text-sm font-medium">Club Admin</span>
           </Link>
         )}
+
+        {/* Superadmin - only visible to superadmins */}
+        {showSuperadminLink && (
+          <Link
+            to="/chat/superadmin"
+            onClick={handleNavClick}
+            className={`
+              flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+              ${isSuperadminActive
+                ? 'bg-[var(--color-primary)] bg-opacity-10 text-[var(--color-primary)]'
+                : 'hover:bg-[var(--color-surface-hover)]'
+              }
+            `}
+          >
+            {/* Star/superadmin icon */}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+            <span className="text-sm font-medium">Superadmin</span>
+          </Link>
+        )}
       </div>
 
       {/* Conversations list */}
@@ -222,6 +246,10 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
               <p className="text-sm font-medium truncate">{user?.displayName || 'User'}</p>
               <p className="text-xs text-[var(--color-text-tertiary)] truncate">
                 @{user?.username || 'username'}
+              </p>
+              {/* DEBUG: Remove after testing */}
+              <p className="text-xs text-red-500">
+                SA: {user?.isSuperadmin ? 'YES' : 'NO'}
               </p>
             </div>
           </Link>
@@ -367,6 +395,17 @@ function AdminWithHeader({ onOpenSidebar, isMobile }) {
   );
 }
 
+function SuperadminWithHeader({ onOpenSidebar, isMobile }) {
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {isMobile && <MobileHeader onOpenSidebar={onOpenSidebar} title="Superadmin" />}
+      <div className="flex-1 overflow-y-auto">
+        <SuperAdminDashboard />
+      </div>
+    </div>
+  );
+}
+
 // =============================================================================
 // MAIN CHAT LAYOUT COMPONENT
 // =============================================================================
@@ -505,6 +544,17 @@ function ChatLayout() {
             path="admin"
             element={
               <AdminWithHeader
+                onOpenSidebar={handleOpenSidebar}
+                isMobile={isMobile}
+              />
+            }
+          />
+
+          {/* Superadmin Dashboard */}
+          <Route
+            path="superadmin"
+            element={
+              <SuperadminWithHeader
                 onOpenSidebar={handleOpenSidebar}
                 isMobile={isMobile}
               />

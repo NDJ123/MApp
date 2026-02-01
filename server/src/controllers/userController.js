@@ -120,7 +120,7 @@ export const getUserById = asyncHandler(async (req, res) => {
 
   // Check if this user is in the requester's contacts (for this club)
   const isContact = req.user.contacts?.some(
-    (c) => c.user.toString() === id && c.club.toString() === clubId.toString()
+    (c) => c.club && c.user.toString() === id && c.club.toString() === clubId.toString()
   );
 
   // Check if blocked or muted (club-scoped)
@@ -373,12 +373,13 @@ export const getBlockedAndMuted = asyncHandler(async (req, res) => {
     .populate('mutedUsers.user', 'username displayName avatar');
 
   // Filter to only include users blocked/muted in the current club
+  // Handle case where club might be undefined (legacy data)
   const blockedUsers = user.blockedUsers
-    ?.filter((b) => b.club.toString() === clubId.toString())
+    ?.filter((b) => b.club && b.club.toString() === clubId.toString())
     .map((b) => b.user) || [];
 
   const mutedUsers = user.mutedUsers
-    ?.filter((m) => m.club.toString() === clubId.toString())
+    ?.filter((m) => m.club && m.club.toString() === clubId.toString())
     .map((m) => m.user) || [];
 
   res.status(200).json({
