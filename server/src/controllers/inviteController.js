@@ -16,12 +16,21 @@ import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 // CREATE INVITE
 // =============================================================================
 // POST /api/invites
-// Generate a new invite code for the current user
+// Generate a new invite code for the current user in their active club
+// Requires club admin privileges
 // =============================================================================
 
 export const createInvite = asyncHandler(async (req, res) => {
-  // Create a new invite for the authenticated user
-  const invite = await Invite.createForUser(req.userId);
+  // Must have club context (set by clubContext middleware)
+  if (!req.clubId) {
+    throw new AppError('No club context. Please select a club.', 400);
+  }
+
+  // Create a new invite for the authenticated user in their club
+  const invite = await Invite.createForUser(req.userId, req.clubId);
+
+  // Populate club info for response
+  await invite.populate('club', 'name');
 
   res.status(201).json({
     status: 'success',
@@ -29,6 +38,7 @@ export const createInvite = asyncHandler(async (req, res) => {
     data: {
       invite: {
         code: invite.code,
+        club: invite.club,
         createdAt: invite.createdAt,
         expiresAt: invite.expiresAt,
       },
@@ -40,17 +50,25 @@ export const createInvite = asyncHandler(async (req, res) => {
 // GET MY INVITES
 // =============================================================================
 // GET /api/invites
-// List all invite codes created by the current user
+// List all invite codes created by the current user in the current club
 // =============================================================================
 
 export const getMyInvites = asyncHandler(async (req, res) => {
-  const invites = await Invite.find({ createdBy: req.userId })
+  // Build query - filter by club if context is provided
+  const query = { createdBy: req.userId };
+  if (req.clubId) {
+    query.club = req.clubId;
+  }
+
+  const invites = await Invite.find(query)
     .populate('usedBy', 'username displayName avatar')
+    .populate('club', 'name')
     .sort({ createdAt: -1 }); // Most recent first
 
   // Transform invites to include status
   const inviteData = invites.map((invite) => ({
     code: invite.code,
+    club: invite.club,
     status: invite.usedBy ? 'used' : invite.isValid() ? 'valid' : 'expired',
     createdAt: invite.createdAt,
     usedBy: invite.usedBy,
@@ -73,6 +91,7 @@ export const getMyInvites = asyncHandler(async (req, res) => {
 // GET /api/invites/validate/:code
 // Check if an invite code is valid (for signup form)
 // Public endpoint - no auth required
+// Returns club info so user knows which club they're joining
 // =============================================================================
 
 export const validateInviteCode = asyncHandler(async (req, res) => {
@@ -89,6 +108,19 @@ export const validateInviteCode = asyncHandler(async (req, res) => {
     message: 'Invite code is valid',
     data: {
       valid: true,
+      club: result.invite?.club
+        ? {
+            _id: result.invite.club._id,
+            name: result.invite.club.name,
+            image: result.invite.club.image,
+          }
+        : null,
+      invitedBy: result.invite?.createdBy
+        ? {
+            username: result.invite.createdBy.username,
+            displayName: result.invite.createdBy.displayName,
+          }
+        : null,
     },
   });
 });
