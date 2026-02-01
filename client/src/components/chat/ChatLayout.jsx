@@ -23,6 +23,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useClub } from '../../context/ClubContext';
 import ContactList from '../users/ContactList';
 import UserDirectory from '../users/UserDirectory';
 import InviteManagement from '../invites/InviteManagement';
@@ -31,6 +32,7 @@ import GroupList from '../groups/GroupList';
 import CreateGroupModal from '../groups/CreateGroupModal';
 import ProfileSettings from '../profile/ProfileSettings';
 import ClubSwitcher from '../clubs/ClubSwitcher';
+import ClubAdminDashboard from '../clubs/ClubAdminDashboard';
 
 // =============================================================================
 // MOBILE BREAKPOINT HOOK
@@ -63,12 +65,17 @@ function useIsMobile() {
 
 function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
   const { user, logout } = useAuth();
+  const { isClubAdmin } = useClub();
   const location = useLocation();
   const navigate = useNavigate();
 
   // Check which page is active
   const isDirectoryActive = location.pathname === '/chat/directory';
   const isInvitesActive = location.pathname === '/chat/invites';
+  const isAdminActive = location.pathname === '/chat/admin';
+
+  // Show admin link if user is club admin or superadmin
+  const showAdminLink = isClubAdmin || user?.isSuperadmin;
 
   // Handle logout
   const handleLogout = async () => {
@@ -145,6 +152,27 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
           </svg>
           <span className="text-sm font-medium">Invite Users</span>
         </Link>
+
+        {/* Club Admin - only visible to admins */}
+        {showAdminLink && (
+          <Link
+            to="/chat/admin"
+            onClick={handleNavClick}
+            className={`
+              flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+              ${isAdminActive
+                ? 'bg-[var(--color-primary)] bg-opacity-10 text-[var(--color-primary)]'
+                : 'hover:bg-[var(--color-surface-hover)]'
+              }
+            `}
+          >
+            {/* Shield/admin icon */}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <span className="text-sm font-medium">Club Admin</span>
+          </Link>
+        )}
       </div>
 
       {/* Conversations list */}
@@ -328,6 +356,17 @@ function ProfileWithHeader({ onOpenSidebar, isMobile }) {
   );
 }
 
+function AdminWithHeader({ onOpenSidebar, isMobile }) {
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {isMobile && <MobileHeader onOpenSidebar={onOpenSidebar} title="Club Admin" />}
+      <div className="flex-1 overflow-y-auto">
+        <ClubAdminDashboard />
+      </div>
+    </div>
+  );
+}
+
 // =============================================================================
 // MAIN CHAT LAYOUT COMPONENT
 // =============================================================================
@@ -455,6 +494,17 @@ function ChatLayout() {
             path="profile"
             element={
               <ProfileWithHeader
+                onOpenSidebar={handleOpenSidebar}
+                isMobile={isMobile}
+              />
+            }
+          />
+
+          {/* Club Admin Dashboard */}
+          <Route
+            path="admin"
+            element={
+              <AdminWithHeader
                 onOpenSidebar={handleOpenSidebar}
                 isMobile={isMobile}
               />
