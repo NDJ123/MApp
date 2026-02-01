@@ -29,18 +29,26 @@ export default function ClubSwitcher() {
 
   // Handle club switch
   const handleSwitchClub = async (clubId) => {
+    console.log('[ClubSwitcher] Switching to club:', clubId);
+
     if (clubId === activeClub?._id) {
+      console.log('[ClubSwitcher] Same club, skipping');
       setIsOpen(false);
       return;
     }
 
     const result = await switchClub(clubId);
+    console.log('[ClubSwitcher] Switch result:', result);
+
     if (result.success) {
       setIsOpen(false);
       // Navigate to chat home to refresh context
       navigate('/chat');
       // Force page reload to refresh all club-scoped data
       window.location.reload();
+    } else {
+      console.error('[ClubSwitcher] Switch failed:', result.error);
+      alert('Failed to switch club: ' + (result.error || 'Unknown error'));
     }
   };
 
