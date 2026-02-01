@@ -32,7 +32,16 @@ const inviteSchema = new mongoose.Schema(
     // RELATIONSHIPS
     // -------------------------------------------------------------------------
 
-    // Who created this invite
+    // Which club this invite is for
+    // When a user signs up with this invite, they join this club
+    club: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Club',
+      required: [true, 'Invite must be associated with a club'],
+      index: true,
+    },
+
+    // Who created this invite (must be a club admin or superadmin)
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -74,8 +83,11 @@ const inviteSchema = new mongoose.Schema(
 // Index for looking up invites by code (used during signup)
 inviteSchema.index({ code: 1 });
 
-// Index for finding all invites created by a user
-inviteSchema.index({ createdBy: 1 });
+// Index for finding all invites by club
+inviteSchema.index({ club: 1 });
+
+// Index for finding all invites created by a user in a club
+inviteSchema.index({ club: 1, createdBy: 1 });
 
 // =============================================================================
 // STATIC METHODS
@@ -94,11 +106,12 @@ inviteSchema.statics.generateCode = function () {
 };
 
 /**
- * Create a new invite for a user
+ * Create a new invite for a user in a specific club
  * @param {ObjectId} userId - The user creating the invite
+ * @param {ObjectId} clubId - The club the invite is for
  * @returns {Promise<Invite>} - The created invite
  */
-inviteSchema.statics.createForUser = async function (userId) {
+inviteSchema.statics.createForUser = async function (userId, clubId) {
   // Generate a unique code (retry if collision)
   let code;
   let isUnique = false;
@@ -115,6 +128,7 @@ inviteSchema.statics.createForUser = async function (userId) {
   // Create and return the invite
   return await this.create({
     code,
+    club: clubId,
     createdBy: userId,
   });
 };
@@ -155,10 +169,12 @@ inviteSchema.statics.useCode = async function (code, userId) {
 /**
  * Check if an invite code is valid (without using it)
  * @param {string} code - The invite code to check
- * @returns {Promise<{valid: boolean, error?: string}>}
+ * @returns {Promise<{valid: boolean, invite?: Invite, error?: string}>}
  */
 inviteSchema.statics.validateCode = async function (code) {
-  const invite = await this.findOne({ code: code.toUpperCase() });
+  const invite = await this.findOne({ code: code.toUpperCase() })
+    .populate('club', 'name image')
+    .populate('createdBy', 'username displayName');
 
   if (!invite) {
     return { valid: false, error: 'Invalid invite code' };
@@ -172,7 +188,8 @@ inviteSchema.statics.validateCode = async function (code) {
     return { valid: false, error: 'This invite code has expired' };
   }
 
-  return { valid: true };
+  // Return the invite so the caller can access club information
+  return { valid: true, invite };
 };
 
 // =============================================================================

@@ -31,6 +31,21 @@ const memberSchema = new mongoose.Schema({
 
 const groupSchema = new mongoose.Schema(
   {
+    // Which club this group belongs to
+    club: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Club',
+      required: [true, 'Group must belong to a club'],
+      index: true,
+    },
+
+    // Is this the default group for all club members?
+    // Each club has one default group that auto-includes all active members
+    isDefaultClubGroup: {
+      type: Boolean,
+      default: false,
+    },
+
     // Group name
     name: {
       type: String,
@@ -79,8 +94,14 @@ const groupSchema = new mongoose.Schema(
 // INDEXES
 // =============================================================================
 
-// Index for finding groups by member
-groupSchema.index({ 'members.user': 1 });
+// Index for finding groups by club
+groupSchema.index({ club: 1 });
+
+// Index for finding the default club group
+groupSchema.index({ club: 1, isDefaultClubGroup: 1 });
+
+// Index for finding groups by member within a club
+groupSchema.index({ club: 1, 'members.user': 1 });
 
 // Index for searching groups by name
 groupSchema.index({ name: 'text' });
@@ -143,15 +164,34 @@ groupSchema.methods.promoteToAdmin = function(userId) {
 // STATIC METHODS
 // =============================================================================
 
-// Get all groups for a user
-groupSchema.statics.getGroupsForUser = function(userId) {
-  return this.find({
+// Get all groups for a user in a specific club
+groupSchema.statics.getGroupsForUser = function(userId, clubId) {
+  const query = {
     'members.user': userId,
+    isActive: true,
+  };
+
+  // If clubId is provided, filter by club
+  if (clubId) {
+    query.club = clubId;
+  }
+
+  return this.find(query)
+    .populate('members.user', 'username displayName avatar')
+    .populate('createdBy', 'username displayName')
+    .populate('club', 'name')
+    .sort({ isDefaultClubGroup: -1, updatedAt: -1 }); // Default group first
+};
+
+// Get the default group for a club
+groupSchema.statics.getDefaultGroupForClub = function(clubId) {
+  return this.findOne({
+    club: clubId,
+    isDefaultClubGroup: true,
     isActive: true,
   })
     .populate('members.user', 'username displayName avatar')
-    .populate('createdBy', 'username displayName')
-    .sort({ updatedAt: -1 });
+    .populate('createdBy', 'username displayName');
 };
 
 // =============================================================================
