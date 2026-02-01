@@ -15,6 +15,11 @@ export default function ClubSwitcher() {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
+  // DEBUG: Log on mount to verify new code is deployed
+  useEffect(() => {
+    console.log('[ClubSwitcher] v2 - Component mounted. Clubs:', clubs?.length);
+  }, [clubs]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
