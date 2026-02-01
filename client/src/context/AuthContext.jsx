@@ -164,6 +164,7 @@ export function AuthProvider({ children }) {
       // Clear local storage and state
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('activeClubId');
       setUser(null);
       setError(null);
     }

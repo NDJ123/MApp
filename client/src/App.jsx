@@ -16,6 +16,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Context providers
 import { AuthProvider } from './context/AuthContext';
+import { ClubProvider } from './context/ClubContext';
 import { SocketProvider } from './context/SocketContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ContactProvider } from './context/ContactContext';
@@ -35,12 +36,14 @@ function App() {
   return (
     // AuthProvider wraps the entire app to provide auth state everywhere
     <AuthProvider>
-      {/* SocketProvider connects to the server for real-time features */}
-      <SocketProvider>
-        {/* ContactProvider manages the contact list state */}
-        <ContactProvider>
-        {/* NotificationProvider handles desktop notifications */}
-        <NotificationProvider>
+      {/* ClubProvider manages the current club context */}
+      <ClubProvider>
+        {/* SocketProvider connects to the server for real-time features */}
+        <SocketProvider>
+          {/* ContactProvider manages the contact list state */}
+          <ContactProvider>
+          {/* NotificationProvider handles desktop notifications */}
+          <NotificationProvider>
         <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
           <Routes>
           {/* ----------------------------------------------------------------- */}
@@ -79,9 +82,10 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-        </NotificationProvider>
-        </ContactProvider>
-      </SocketProvider>
+          </NotificationProvider>
+          </ContactProvider>
+        </SocketProvider>
+      </ClubProvider>
     </AuthProvider>
   );
 }

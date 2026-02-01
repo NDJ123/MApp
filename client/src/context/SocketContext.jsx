@@ -35,12 +35,37 @@ export function SocketProvider({ children }) {
   // CONNECT SOCKET
   // ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    // Get token directly from localStorage (more reliable than context)
-    const token = localStorage.getItem('token');
+  // Track current club ID to detect changes
+  const [currentClubId, setCurrentClubId] = useState(localStorage.getItem('activeClubId'));
 
-    // Only connect if we have a user and token
-    if (!user || !token) {
+  // Listen for club changes via storage event or polling
+  useEffect(() => {
+    const checkClubId = () => {
+      const clubId = localStorage.getItem('activeClubId');
+      if (clubId !== currentClubId) {
+        setCurrentClubId(clubId);
+      }
+    };
+
+    // Check periodically for club changes (in case changed in same tab)
+    const interval = setInterval(checkClubId, 1000);
+
+    // Also listen for storage events (changes from other tabs)
+    window.addEventListener('storage', checkClubId);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', checkClubId);
+    };
+  }, [currentClubId]);
+
+  useEffect(() => {
+    // Get token and clubId directly from localStorage
+    const token = localStorage.getItem('token');
+    const clubId = localStorage.getItem('activeClubId');
+
+    // Only connect if we have a user, token, and club
+    if (!user || !token || !clubId) {
       if (socket) {
         intentionalDisconnect.current = true;
         socket.disconnect();
@@ -50,11 +75,11 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    // Create socket connection
+    // Create socket connection with club context
     // In production, SOCKET_URL points to the backend server
     // In development, empty string means "connect to current host" (proxied by Vite)
     const newSocket = io(SOCKET_URL || undefined, {
-      auth: { token },
+      auth: { token, clubId }, // Include clubId in socket handshake
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -64,6 +89,7 @@ export function SocketProvider({ children }) {
 
     // Connection events
     newSocket.on('connect', () => {
+      console.log(`[Socket] Connected to club: ${clubId}`);
       setIsConnected(true);
       intentionalDisconnect.current = false;
     });
@@ -77,7 +103,7 @@ export function SocketProvider({ children }) {
       setIsConnected(false);
     });
 
-    // Online status events
+    // Online status events (now club-scoped)
     newSocket.on('user:online', ({ userId }) => {
       setOnlineUsers(prev => new Set([...prev, userId]));
     });
@@ -92,12 +118,12 @@ export function SocketProvider({ children }) {
 
     setSocket(newSocket);
 
-    // Cleanup on unmount or when user/token changes
+    // Cleanup on unmount or when user/token/club changes
     return () => {
       intentionalDisconnect.current = true;
       newSocket.disconnect();
     };
-  }, [user]);
+  }, [user, currentClubId]); // Reconnect when club changes
 
   // ---------------------------------------------------------------------------
   // SEND MESSAGE
