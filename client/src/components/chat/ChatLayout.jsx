@@ -247,10 +247,6 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
               <p className="text-xs text-[var(--color-text-tertiary)] truncate">
                 @{user?.username || 'username'}
               </p>
-              {/* DEBUG: Remove after testing */}
-              <p className="text-xs text-red-500">
-                SA: {user?.isSuperadmin ? 'YES' : 'NO'}
-              </p>
             </div>
           </Link>
 

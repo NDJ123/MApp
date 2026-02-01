@@ -54,13 +54,19 @@ export const createClub = async (req, res, next) => {
       createdBy: req.user._id,
     });
 
-    // Create the default group for the club
+    // Create the default group for the club with the creator as first member
     const defaultGroup = await Group.create({
       name: club.name,
       description: `All members of ${club.name}`,
       club: club._id,
       isDefaultClubGroup: true,
-      members: [], // Will be populated as members join
+      members: [
+        {
+          user: req.user._id,
+          role: 'admin',
+          joinedAt: new Date(),
+        },
+      ],
       createdBy: req.user._id,
       isActive: true,
     });
@@ -68,6 +74,18 @@ export const createClub = async (req, res, next) => {
     // Update club with default group reference
     club.defaultGroup = defaultGroup._id;
     await club.save();
+
+    // Add the creator as an admin member of this club
+    await User.findByIdAndUpdate(req.user._id, {
+      $push: {
+        clubMemberships: {
+          club: club._id,
+          role: 'admin',
+          isActive: true,
+          joinedAt: new Date(),
+        },
+      },
+    });
 
     // Populate for response
     await club.populate('createdBy', 'username displayName');
