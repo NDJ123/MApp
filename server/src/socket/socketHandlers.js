@@ -41,8 +41,21 @@ const authenticateSocket = async (socket, next) => {
       return next(new Error('User not found'));
     }
 
-    // Attach user to socket
+    // Get club context from handshake (required for club-scoped messaging)
+    const clubId = socket.handshake.auth?.clubId || socket.handshake.query?.clubId;
+    if (!clubId) {
+      return next(new Error('Club context required'));
+    }
+
+    // Verify user is an active member of this club
+    const membership = user.getClubMembership(clubId);
+    if (!membership || !membership.isActive) {
+      return next(new Error('Not an active member of this club'));
+    }
+
+    // Attach user and club to socket
     socket.user = user;
+    socket.clubId = clubId;
     next();
   } catch (error) {
     console.error('[Socket] Auth error:', error.message);
@@ -63,28 +76,35 @@ export const setupSocketHandlers = (io) => {
   // Handle new connections
   io.on('connection', (socket) => {
     const user = socket.user;
-    console.log(`[Socket] User connected: ${user.username} (${socket.id})`);
+    const clubId = socket.clubId;
+    console.log(`[Socket] User connected: ${user.username} in club ${clubId} (${socket.id})`);
 
     // -------------------------------------------------------------------------
-    // JOIN USER'S PERSONAL ROOM
+    // JOIN USER'S PERSONAL ROOM (club-scoped)
     // -------------------------------------------------------------------------
-    // Each user joins a room named after their user ID
-    // This allows us to send messages directly to them
+    // Each user joins a room named after their user ID and club
+    // This allows us to send messages directly to them within the club context
     // -------------------------------------------------------------------------
 
     socket.join(user._id.toString());
+    socket.join(`${clubId}:${user._id}`); // Club-scoped user room
 
-    // Track online status
-    if (!onlineUsers.has(user._id.toString())) {
-      onlineUsers.set(user._id.toString(), new Set());
+    // Track online status (club-scoped)
+    const userClubKey = `${clubId}:${user._id}`;
+    if (!onlineUsers.has(userClubKey)) {
+      onlineUsers.set(userClubKey, new Set());
     }
-    onlineUsers.get(user._id.toString()).add(socket.id);
+    onlineUsers.get(userClubKey).add(socket.id);
 
-    // Broadcast online status to contacts
-    socket.broadcast.emit('user:online', {
+    // Broadcast online status to club members
+    socket.to(`club:${clubId}`).emit('user:online', {
       userId: user._id,
       username: user.username,
+      clubId,
     });
+
+    // Join club room for broadcasts
+    socket.join(`club:${clubId}`);
 
     // -------------------------------------------------------------------------
     // SEND MESSAGE
@@ -105,19 +125,23 @@ export const setupSocketHandlers = (io) => {
           return callback?.({ error: 'Message content or file is required' });
         }
 
-        // Verify recipient exists
-        const recipient = await User.findById(recipientId);
+        // Verify recipient exists and is in the same club
+        const recipient = await User.findOne({
+          _id: recipientId,
+          'clubMemberships.club': clubId,
+          'clubMemberships.isActive': true,
+        });
         if (!recipient) {
-          return callback?.({ error: 'Recipient not found' });
+          return callback?.({ error: 'Recipient not found in this club' });
         }
 
-        // Check if sender is blocked by recipient
-        if (recipient.hasBlocked(user._id)) {
+        // Check if sender is blocked by recipient (club-scoped)
+        if (recipient.hasBlocked(user._id, clubId)) {
           return callback?.({ error: 'Cannot send message to this user' });
         }
 
-        // Check if sender has blocked recipient
-        if (user.blockedUsers?.some((id) => id.toString() === recipientId.toString())) {
+        // Check if sender has blocked recipient (club-scoped)
+        if (user.hasBlocked(recipientId, clubId)) {
           return callback?.({ error: 'You have blocked this user' });
         }
 
@@ -132,8 +156,8 @@ export const setupSocketHandlers = (io) => {
           }
         }
 
-        // Generate conversation ID
-        const conversationId = Message.getDMConversationId(user._id, recipientId);
+        // Generate conversation ID (now includes clubId)
+        const conversationId = Message.getDMConversationId(user._id, recipientId, clubId);
 
         // Validate replyTo if provided
         let replyToMessage = null;
@@ -151,10 +175,11 @@ export const setupSocketHandlers = (io) => {
           messageType = file.mimeType.startsWith('image/') ? 'image' : 'file';
         }
 
-        // Create message
+        // Create message (now includes club)
         const message = await Message.create({
           sender: user._id,
           recipient: recipientId,
+          club: clubId,
           conversationId,
           content: content?.trim() || '',
           messageType,
@@ -175,6 +200,7 @@ export const setupSocketHandlers = (io) => {
           _id: message._id.toString(), // Ensure string for consistency
           sender: message.sender,
           recipient: message.recipient,
+          club: clubId,
           conversationId: message.conversationId,
           content: message.content,
           messageType: message.messageType,
@@ -188,8 +214,8 @@ export const setupSocketHandlers = (io) => {
           createdAt: message.createdAt,
         };
 
-        // Send to recipient (if online) - blocking already checked above
-        io.to(recipientId.toString()).emit('message:receive', messageData);
+        // Send to recipient (if online in this club) - blocking already checked above
+        io.to(`${clubId}:${recipientId}`).emit('message:receive', messageData);
 
         // Send back to sender for confirmation
         callback?.({ success: true, message: messageData });
@@ -203,8 +229,8 @@ export const setupSocketHandlers = (io) => {
               await Message.findByIdAndUpdate(message._id, { linkPreview });
 
               const previewData = { messageId: msgId, linkPreview };
-              io.to(recipientId.toString()).emit('message:linkPreview', previewData);
-              io.to(user._id.toString()).emit('message:linkPreview', previewData);
+              io.to(`${clubId}:${recipientId}`).emit('message:linkPreview', previewData);
+              io.to(`${clubId}:${user._id}`).emit('message:linkPreview', previewData);
             }
           }).catch(() => {});
         }
@@ -241,10 +267,11 @@ export const setupSocketHandlers = (io) => {
 
     socket.on('messages:read', async ({ userId }) => {
       try {
-        const conversationId = Message.getDMConversationId(user._id, userId);
+        const conversationId = Message.getDMConversationId(user._id, userId, clubId);
 
-        // Find unread messages from the other user
+        // Find unread messages from the other user in this club
         const unreadMessages = await Message.find({
+          club: clubId,
           conversationId,
           sender: userId,
           'readBy.user': { $ne: user._id },
@@ -255,10 +282,11 @@ export const setupSocketHandlers = (io) => {
           await message.markAsRead(user._id);
         }
 
-        // Notify the other user that their messages were read
-        io.to(userId).emit('messages:read', {
+        // Notify the other user that their messages were read (club-scoped)
+        io.to(`${clubId}:${userId}`).emit('messages:read', {
           userId: user._id,
           conversationId,
+          clubId,
         });
       } catch (error) {
         console.error('[Socket] Mark read error:', error);
@@ -273,10 +301,15 @@ export const setupSocketHandlers = (io) => {
 
     const joinGroupRooms = async () => {
       try {
-        const groups = await Group.find({ 'members.user': user._id, isActive: true });
+        // Only join groups in the current club
+        const groups = await Group.find({
+          club: clubId,
+          'members.user': user._id,
+          isActive: true
+        });
         for (const group of groups) {
           socket.join(`group:${group._id}`);
-          console.log(`[Socket] ${user.username} joined group room: ${group.name}`);
+          console.log(`[Socket] ${user.username} joined group room: ${group.name} (club: ${clubId})`);
         }
       } catch (error) {
         console.error('[Socket] Error joining group rooms:', error);
@@ -314,10 +347,13 @@ export const setupSocketHandlers = (io) => {
           return callback?.({ error: 'Message content or file is required' });
         }
 
-        // Verify group exists and user is a member
+        // Verify group exists, is in the current club, and user is a member
         const group = await Group.findById(groupId);
         if (!group) {
           return callback?.({ error: 'Group not found' });
+        }
+        if (group.club.toString() !== clubId.toString()) {
+          return callback?.({ error: 'Group not found in this club' });
         }
         if (!group.isMember(user._id)) {
           return callback?.({ error: 'You are not a member of this group' });
@@ -353,10 +389,11 @@ export const setupSocketHandlers = (io) => {
           messageType = file.mimeType.startsWith('image/') ? 'image' : 'file';
         }
 
-        // Create message
+        // Create message (now includes club)
         const message = await Message.create({
           sender: user._id,
           group: groupId,
+          club: clubId,
           conversationId,
           content: content?.trim() || '',
           messageType,
@@ -377,6 +414,7 @@ export const setupSocketHandlers = (io) => {
           _id: message._id.toString(), // Ensure string for consistency
           sender: message.sender,
           group: { _id: groupId, name: group.name },
+          club: clubId,
           conversationId: message.conversationId,
           content: message.content,
           messageType: message.messageType,
@@ -452,6 +490,11 @@ export const setupSocketHandlers = (io) => {
           return callback?.({ error: 'Message not found' });
         }
 
+        // Verify message belongs to current club
+        if (message.club.toString() !== clubId.toString()) {
+          return callback?.({ error: 'Message not found' });
+        }
+
         // Verify user can react to this message
         if (message.group) {
           const group = await Group.findById(message.group);
@@ -478,14 +521,14 @@ export const setupSocketHandlers = (io) => {
           reactions: updatedMessage.reactions,
         };
 
-        // Broadcast to appropriate recipients
+        // Broadcast to appropriate recipients (club-scoped)
         if (message.group) {
           // Send to all group members
           io.to(`group:${message.group}`).emit('reaction:updated', reactionData);
         } else {
-          // Send to both DM participants
-          io.to(message.sender.toString()).emit('reaction:updated', reactionData);
-          io.to(message.recipient.toString()).emit('reaction:updated', reactionData);
+          // Send to both DM participants (club-scoped)
+          io.to(`${clubId}:${message.sender}`).emit('reaction:updated', reactionData);
+          io.to(`${clubId}:${message.recipient}`).emit('reaction:updated', reactionData);
         }
 
         callback?.({ success: true, reactions: updatedMessage.reactions });
@@ -515,6 +558,11 @@ export const setupSocketHandlers = (io) => {
           return callback?.({ error: 'Message not found' });
         }
 
+        // Verify message belongs to current club
+        if (message.club.toString() !== clubId.toString()) {
+          return callback?.({ error: 'Message not found' });
+        }
+
         // Only the sender can edit their own messages
         if (message.sender.toString() !== user._id.toString()) {
           return callback?.({ error: 'You can only edit your own messages' });
@@ -537,12 +585,12 @@ export const setupSocketHandlers = (io) => {
           editedAt: message.editedAt,
         };
 
-        // Broadcast to appropriate recipients
+        // Broadcast to appropriate recipients (club-scoped)
         if (message.group) {
           io.to(`group:${message.group}`).emit('message:edited', editData);
         } else {
-          io.to(message.sender.toString()).emit('message:edited', editData);
-          io.to(message.recipient.toString()).emit('message:edited', editData);
+          io.to(`${clubId}:${message.sender}`).emit('message:edited', editData);
+          io.to(`${clubId}:${message.recipient}`).emit('message:edited', editData);
         }
 
         callback?.({ success: true, message: editData });
@@ -571,6 +619,11 @@ export const setupSocketHandlers = (io) => {
           return callback?.({ error: 'Message not found' });
         }
 
+        // Verify message belongs to current club
+        if (message.club.toString() !== clubId.toString()) {
+          return callback?.({ error: 'Message not found' });
+        }
+
         // Only the sender can delete their own messages
         if (message.sender.toString() !== user._id.toString()) {
           return callback?.({ error: 'You can only delete your own messages' });
@@ -590,12 +643,12 @@ export const setupSocketHandlers = (io) => {
           messageId: message._id.toString(),
         };
 
-        // Broadcast to appropriate recipients
+        // Broadcast to appropriate recipients (club-scoped)
         if (message.group) {
           io.to(`group:${message.group}`).emit('message:deleted', deleteData);
         } else {
-          io.to(message.sender.toString()).emit('message:deleted', deleteData);
-          io.to(message.recipient.toString()).emit('message:deleted', deleteData);
+          io.to(`${clubId}:${message.sender}`).emit('message:deleted', deleteData);
+          io.to(`${clubId}:${message.recipient}`).emit('message:deleted', deleteData);
         }
 
         callback?.({ success: true });
@@ -610,18 +663,20 @@ export const setupSocketHandlers = (io) => {
     // -------------------------------------------------------------------------
 
     socket.on('disconnect', (reason) => {
-      console.log(`[Socket] User disconnected: ${user.username} (${reason})`);
+      console.log(`[Socket] User disconnected: ${user.username} from club ${clubId} (${reason})`);
 
-      // Remove from online users
-      const userSockets = onlineUsers.get(user._id.toString());
+      // Remove from online users (club-scoped)
+      const userClubKey = `${clubId}:${user._id}`;
+      const userSockets = onlineUsers.get(userClubKey);
       if (userSockets) {
         userSockets.delete(socket.id);
         if (userSockets.size === 0) {
-          onlineUsers.delete(user._id.toString());
+          onlineUsers.delete(userClubKey);
 
-          // Broadcast offline status
-          socket.broadcast.emit('user:offline', {
+          // Broadcast offline status to club members
+          socket.to(`club:${clubId}`).emit('user:offline', {
             userId: user._id,
+            clubId,
           });
         }
       }
@@ -635,12 +690,20 @@ export const setupSocketHandlers = (io) => {
 // UTILITY FUNCTIONS
 // =============================================================================
 
-// Check if a user is online
-export const isUserOnline = (userId) => {
-  return onlineUsers.has(userId.toString()) && onlineUsers.get(userId.toString()).size > 0;
+// Check if a user is online in a specific club
+export const isUserOnline = (userId, clubId) => {
+  const userClubKey = `${clubId}:${userId}`;
+  return onlineUsers.has(userClubKey) && onlineUsers.get(userClubKey).size > 0;
 };
 
-// Get all online user IDs
-export const getOnlineUserIds = () => {
-  return Array.from(onlineUsers.keys());
+// Get all online user IDs in a specific club
+export const getOnlineUserIds = (clubId) => {
+  const onlineInClub = [];
+  for (const key of onlineUsers.keys()) {
+    if (key.startsWith(`${clubId}:`)) {
+      const userId = key.split(':')[1];
+      onlineInClub.push(userId);
+    }
+  }
+  return onlineInClub;
 };

@@ -90,16 +90,65 @@ const userSchema = new mongoose.Schema(
     },
 
     // -------------------------------------------------------------------------
-    // RELATIONSHIPS
+    // SUPERADMIN FLAG
     // -------------------------------------------------------------------------
+    // Superadmins can create clubs, assign club admins, and manage the platform.
+    // The first superadmin is designated via migration (neildjohnson@icloud.com).
+
+    isSuperadmin: {
+      type: Boolean,
+      default: false,
+    },
+
+    // -------------------------------------------------------------------------
+    // CLUB MEMBERSHIPS
+    // -------------------------------------------------------------------------
+    // Users can belong to multiple clubs, each with a role and active status.
+
+    clubMemberships: [
+      {
+        club: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Club',
+          required: true,
+        },
+        role: {
+          type: String,
+          enum: ['admin', 'member'],
+          default: 'member',
+        },
+        isActive: {
+          type: Boolean,
+          default: true,
+        },
+        joinedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
+    // Currently selected club for UI context
+    activeClub: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Club',
+    },
+
+    // -------------------------------------------------------------------------
+    // RELATIONSHIPS (CLUB-SCOPED)
+    // -------------------------------------------------------------------------
+    // Contacts, blocked users, and muted users are now scoped per club.
 
     contacts: [
       {
-        // ObjectId is MongoDB's unique identifier type
-        // 'ref' tells Mongoose this ID refers to a User document
-        // This enables "population" - replacing IDs with actual user data
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        club: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Club',
+        },
       },
     ],
 
@@ -109,19 +158,31 @@ const userSchema = new mongoose.Schema(
       // null for the first user(s) created manually
     },
 
-    // Users this user has blocked (won't receive their messages)
+    // Users this user has blocked (won't receive their messages) - per club
     blockedUsers: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        club: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Club',
+        },
       },
     ],
 
-    // Users this user has muted (messages come through but no notifications)
+    // Users this user has muted (messages come through but no notifications) - per club
     mutedUsers: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        club: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Club',
+        },
       },
     ],
 
@@ -173,8 +234,17 @@ const userSchema = new mongoose.Schema(
 // to create separate indexes for username and email.
 // =============================================================================
 
-// Compound index for finding users by contacts (for contact list queries)
-userSchema.index({ contacts: 1 });
+// Index for finding users by club memberships
+userSchema.index({ 'clubMemberships.club': 1 });
+
+// Index for superadmin queries
+userSchema.index({ isSuperadmin: 1 });
+
+// Compound index for club-scoped contacts
+userSchema.index({ 'contacts.club': 1, 'contacts.user': 1 });
+
+// Index for finding users by active club
+userSchema.index({ activeClub: 1 });
 
 // =============================================================================
 // PRE-SAVE MIDDLEWARE (Hooks)
@@ -224,21 +294,73 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 };
 
 /**
- * Check if this user has blocked another user
+ * Check if this user has blocked another user in a specific club
  * @param {ObjectId} userId - The user ID to check
+ * @param {ObjectId} clubId - The club ID for scoping
  * @returns {boolean}
  */
-userSchema.methods.hasBlocked = function (userId) {
-  return this.blockedUsers.some((id) => id.toString() === userId.toString());
+userSchema.methods.hasBlocked = function (userId, clubId) {
+  return this.blockedUsers.some(
+    (blocked) =>
+      blocked.user.toString() === userId.toString() &&
+      blocked.club.toString() === clubId.toString()
+  );
 };
 
 /**
- * Check if this user has muted another user
+ * Check if this user has muted another user in a specific club
  * @param {ObjectId} userId - The user ID to check
+ * @param {ObjectId} clubId - The club ID for scoping
  * @returns {boolean}
  */
-userSchema.methods.hasMuted = function (userId) {
-  return this.mutedUsers.some((id) => id.toString() === userId.toString());
+userSchema.methods.hasMuted = function (userId, clubId) {
+  return this.mutedUsers.some(
+    (muted) =>
+      muted.user.toString() === userId.toString() &&
+      muted.club.toString() === clubId.toString()
+  );
+};
+
+/**
+ * Get the user's membership for a specific club
+ * @param {ObjectId} clubId - The club ID
+ * @returns {Object|null} - The membership object or null
+ */
+userSchema.methods.getClubMembership = function (clubId) {
+  return this.clubMemberships.find(
+    (m) => m.club.toString() === clubId.toString()
+  );
+};
+
+/**
+ * Check if user is an active member of a club
+ * @param {ObjectId} clubId - The club ID
+ * @returns {boolean}
+ */
+userSchema.methods.isActiveMemberOf = function (clubId) {
+  const membership = this.getClubMembership(clubId);
+  return membership && membership.isActive;
+};
+
+/**
+ * Check if user is an admin of a club
+ * @param {ObjectId} clubId - The club ID
+ * @returns {boolean}
+ */
+userSchema.methods.isAdminOf = function (clubId) {
+  const membership = this.getClubMembership(clubId);
+  return membership && membership.role === 'admin';
+};
+
+/**
+ * Get contacts for a specific club
+ * @param {ObjectId} clubId - The club ID
+ * @returns {ObjectId[]} - Array of user IDs
+ */
+userSchema.methods.getContactsForClub = function (clubId) {
+  return this.contacts
+    .filter((c) => c.club.toString() === clubId.toString())
+    .map((c) => c.user);
 };
 
 /**

@@ -61,6 +61,13 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Get active club ID from localStorage and add to header
+    // This is required for all club-scoped API requests
+    const activeClubId = localStorage.getItem('activeClubId');
+    if (activeClubId) {
+      config.headers['X-Club-Id'] = activeClubId;
+    }
+
     return config;
   },
   (error) => {
@@ -425,6 +432,90 @@ export const groupAPI = {
    * @param {string} groupId - Group ID
    */
   leave: (groupId) => api.post(`/groups/${groupId}/leave`),
+};
+
+// =============================================================================
+// CLUB API ENDPOINTS
+// =============================================================================
+// Club management and switching
+// =============================================================================
+
+export const clubAPI = {
+  /**
+   * Get all clubs (superadmin only)
+   */
+  getAll: () => api.get('/clubs'),
+
+  /**
+   * Get current user's clubs
+   */
+  getMyClubs: () => api.get('/clubs/my'),
+
+  /**
+   * Get a single club by ID
+   * @param {string} clubId - Club ID
+   */
+  getById: (clubId) => api.get(`/clubs/${clubId}`),
+
+  /**
+   * Create a new club (superadmin only)
+   * @param {Object} data - { name, description, image, address, contactEmail, contactPhone }
+   */
+  create: (data) => api.post('/clubs', data),
+
+  /**
+   * Update club settings
+   * @param {string} clubId - Club ID
+   * @param {Object} data - Club data to update
+   */
+  update: (clubId, data) => api.put(`/clubs/${clubId}`, data),
+
+  /**
+   * Get club members
+   * @param {string} clubId - Club ID
+   */
+  getMembers: (clubId) => api.get(`/clubs/${clubId}/members`),
+
+  /**
+   * Add a member to club (admin only)
+   * @param {string} clubId - Club ID
+   * @param {string} userId - User ID to add
+   */
+  addMember: (clubId, userId) => api.post(`/clubs/${clubId}/members`, { userId }),
+
+  /**
+   * Remove a member from club (admin only)
+   * @param {string} clubId - Club ID
+   * @param {string} userId - User ID to remove
+   */
+  removeMember: (clubId, userId) => api.delete(`/clubs/${clubId}/members/${userId}`),
+
+  /**
+   * Promote a member to admin
+   * @param {string} clubId - Club ID
+   * @param {string} userId - User ID to promote
+   */
+  promoteToAdmin: (clubId, userId) => api.post(`/clubs/${clubId}/members/${userId}/promote`),
+
+  /**
+   * Demote an admin to member
+   * @param {string} clubId - Club ID
+   * @param {string} userId - User ID to demote
+   */
+  demoteAdmin: (clubId, userId) => api.post(`/clubs/${clubId}/members/${userId}/demote`),
+
+  /**
+   * Switch the user's active club
+   * @param {string} clubId - Club ID to switch to
+   */
+  switchClub: (clubId) => api.post(`/clubs/${clubId}/switch`),
+
+  /**
+   * Update membership settings (e.g., set active/inactive)
+   * @param {string} clubId - Club ID
+   * @param {Object} data - { isActive }
+   */
+  updateMembership: (clubId, data) => api.patch(`/clubs/${clubId}/membership`, data),
 };
 
 // Export the axios instance for custom requests

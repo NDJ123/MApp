@@ -14,6 +14,8 @@
 
 import User from '../models/User.js';
 import Invite from '../models/Invite.js';
+import Group from '../models/Group.js';
+import Club from '../models/Club.js';
 import { generateToken, cookieOptions } from '../config/jwt.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 import crypto from 'crypto';
@@ -29,9 +31,10 @@ export const signup = asyncHandler(async (req, res) => {
   const { inviteCode, username, email, displayName, password } = req.body;
 
   // -------------------------------------------------------------------------
-  // Step 1: Validate invite code
+  // Step 1: Validate invite code and get club
   // -------------------------------------------------------------------------
-  const invite = await Invite.findOne({ code: inviteCode.toUpperCase() });
+  const invite = await Invite.findOne({ code: inviteCode.toUpperCase() })
+    .populate('club', 'name');
 
   if (!invite) {
     throw new AppError('Invalid invite code', 400);
@@ -43,6 +46,16 @@ export const signup = asyncHandler(async (req, res) => {
 
   if (invite.expiresAt && invite.expiresAt < new Date()) {
     throw new AppError('This invite code has expired', 400);
+  }
+
+  // Verify the club exists and is active
+  if (!invite.club) {
+    throw new AppError('This invite is not associated with a club', 400);
+  }
+
+  const club = await Club.findById(invite.club._id);
+  if (!club || !club.isActive) {
+    throw new AppError('The club associated with this invite is no longer active', 400);
   }
 
   // -------------------------------------------------------------------------
@@ -62,25 +75,51 @@ export const signup = asyncHandler(async (req, res) => {
   }
 
   // -------------------------------------------------------------------------
-  // Step 3: Create new user
+  // Step 3: Create new user with club membership
   // -------------------------------------------------------------------------
   const user = await User.create({
     username,
     email,
     password,
     displayName,
-    invitedBy: invite.createdBy, // Track who invited this user
+    invitedBy: invite.createdBy,
+    activeClub: club._id,
+    clubMemberships: [
+      {
+        club: club._id,
+        role: 'member',
+        isActive: true,
+        joinedAt: new Date(),
+      },
+    ],
   });
 
   // -------------------------------------------------------------------------
-  // Step 4: Mark invite as used
+  // Step 4: Add user to the club's default group
+  // -------------------------------------------------------------------------
+  const defaultGroup = await Group.findOne({
+    club: club._id,
+    isDefaultClubGroup: true,
+  });
+
+  if (defaultGroup) {
+    defaultGroup.members.push({
+      user: user._id,
+      role: 'member',
+      joinedAt: new Date(),
+    });
+    await defaultGroup.save();
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 5: Mark invite as used
   // -------------------------------------------------------------------------
   invite.usedBy = user._id;
   invite.usedAt = new Date();
   await invite.save();
 
   // -------------------------------------------------------------------------
-  // Step 5: Generate JWT and send response
+  // Step 6: Generate JWT and send response
   // -------------------------------------------------------------------------
   const token = generateToken(user._id);
 
@@ -94,6 +133,10 @@ export const signup = asyncHandler(async (req, res) => {
     data: {
       user,
       token,
+      club: {
+        _id: club._id,
+        name: club.name,
+      },
     },
   });
 });
@@ -178,16 +221,33 @@ export const logout = asyncHandler(async (req, res) => {
 export const getMe = asyncHandler(async (req, res) => {
   // req.user is set by the protect middleware
   const user = await User.findById(req.userId)
-    .populate('contacts', 'username displayName avatar')
-    .populate('invitedBy', 'username displayName');
+    .populate('contacts.user', 'username displayName avatar')
+    .populate('contacts.club', 'name')
+    .populate('invitedBy', 'username displayName')
+    .populate('clubMemberships.club', 'name image')
+    .populate('activeClub', 'name image');
 
   if (!user) {
     throw new AppError('User not found', 404);
   }
 
+  // Format clubs for easier frontend consumption
+  const clubs = user.clubMemberships?.map((m) => ({
+    _id: m.club?._id,
+    name: m.club?.name,
+    image: m.club?.image,
+    role: m.role,
+    isActive: m.isActive,
+    joinedAt: m.joinedAt,
+  })) || [];
+
   res.status(200).json({
     status: 'success',
-    data: { user },
+    data: {
+      user,
+      clubs,
+      activeClub: user.activeClub,
+    },
   });
 });
 

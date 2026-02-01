@@ -39,6 +39,8 @@ import userRoutes from './routes/userRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import groupRoutes from './routes/groupRoutes.js';
+import clubRoutes from './routes/clubRoutes.js';
+import superadminRoutes from './routes/superadminRoutes.js';
 
 // Socket handlers
 import { setupSocketHandlers } from './socket/socketHandlers.js';
@@ -113,7 +115,7 @@ const corsOptions = {
   },
   credentials: true,            // Allow cookies to be sent
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Club-Id'],
 };
 app.use(cors(corsOptions));
 
@@ -202,6 +204,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/clubs', clubRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 // 404 handler - for routes that don't exist
 // Using {*splat} syntax for Express 5 / newer path-to-regexp compatibility

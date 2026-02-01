@@ -2,7 +2,8 @@
 // GROUP ROUTES
 // =============================================================================
 // API endpoints for group operations.
-// All routes require authentication.
+// All routes require authentication and club context.
+// Groups are scoped to clubs - each club has its own groups.
 //
 // Routes:
 // POST   /api/groups                      - Create a new group
@@ -16,6 +17,7 @@
 
 import express from 'express';
 import { protect } from '../middleware/auth.js';
+import { clubContext } from '../middleware/club.js';
 import {
   createGroup,
   getMyGroups,
@@ -28,8 +30,9 @@ import {
 
 const router = express.Router();
 
-// All group routes require authentication
+// All group routes require authentication and club context
 router.use(protect);
+router.use(clubContext);
 
 // Group CRUD
 router.post('/', createGroup);

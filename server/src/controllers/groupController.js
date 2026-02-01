@@ -16,12 +16,14 @@ import User from '../models/User.js';
 // CREATE GROUP
 // =============================================================================
 // POST /api/groups
+// Creates a group within the current club
 // =============================================================================
 
 export const createGroup = async (req, res, next) => {
   try {
     const { name, description, memberIds } = req.body;
     const creatorId = req.user._id;
+    const clubId = req.clubId;
 
     // Validate name
     if (!name || name.trim().length < 2) {
@@ -36,8 +38,12 @@ export const createGroup = async (req, res, next) => {
 
     // Add other members if provided
     if (memberIds && memberIds.length > 0) {
-      // Verify all member IDs are valid users
-      const validUsers = await User.find({ _id: { $in: memberIds } });
+      // Verify all member IDs are valid users in the same club
+      const validUsers = await User.find({
+        _id: { $in: memberIds },
+        'clubMemberships.club': clubId,
+        'clubMemberships.isActive': true,
+      });
       const validIds = validUsers.map(u => u._id.toString());
 
       for (const id of memberIds) {
@@ -47,12 +53,14 @@ export const createGroup = async (req, res, next) => {
       }
     }
 
-    // Create the group
+    // Create the group in the current club
     const group = await Group.create({
       name: name.trim(),
       description: description?.trim() || '',
+      club: clubId,
       createdBy: creatorId,
       members,
+      isDefaultClubGroup: false,
     });
 
     // Populate members for response
@@ -72,13 +80,15 @@ export const createGroup = async (req, res, next) => {
 // GET USER'S GROUPS
 // =============================================================================
 // GET /api/groups
+// Returns groups in the current club
 // =============================================================================
 
 export const getMyGroups = async (req, res, next) => {
   try {
     const userId = req.user._id;
+    const clubId = req.clubId;
 
-    const groups = await Group.getGroupsForUser(userId);
+    const groups = await Group.getGroupsForUser(userId, clubId);
 
     res.status(200).json({
       status: 'success',
@@ -99,12 +109,21 @@ export const getGroup = async (req, res, next) => {
   try {
     const { groupId } = req.params;
     const userId = req.user._id;
+    const clubId = req.clubId;
 
     const group = await Group.findById(groupId)
       .populate('members.user', 'username displayName avatar')
       .populate('createdBy', 'username displayName');
 
     if (!group) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Group not found',
+      });
+    }
+
+    // Verify group belongs to current club
+    if (group.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Group not found',
@@ -139,10 +158,19 @@ export const addMember = async (req, res, next) => {
     const { groupId } = req.params;
     const { userId: newMemberId } = req.body;
     const requesterId = req.user._id;
+    const clubId = req.clubId;
 
     const group = await Group.findById(groupId);
 
     if (!group) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Group not found',
+      });
+    }
+
+    // Verify group belongs to current club
+    if (group.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Group not found',
@@ -157,12 +185,16 @@ export const addMember = async (req, res, next) => {
       });
     }
 
-    // Check if user exists
-    const newMember = await User.findById(newMemberId);
+    // Check if user exists and is an active member of the same club
+    const newMember = await User.findOne({
+      _id: newMemberId,
+      'clubMemberships.club': clubId,
+      'clubMemberships.isActive': true,
+    });
     if (!newMember) {
       return res.status(404).json({
         status: 'error',
-        message: 'User not found',
+        message: 'User not found in this club',
       });
     }
 
@@ -199,10 +231,19 @@ export const removeMember = async (req, res, next) => {
   try {
     const { groupId, userId: targetUserId } = req.params;
     const requesterId = req.user._id;
+    const clubId = req.clubId;
 
     const group = await Group.findById(groupId);
 
     if (!group) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Group not found',
+      });
+    }
+
+    // Verify group belongs to current club
+    if (group.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Group not found',
@@ -251,10 +292,19 @@ export const leaveGroup = async (req, res, next) => {
   try {
     const { groupId } = req.params;
     const userId = req.user._id;
+    const clubId = req.clubId;
 
     const group = await Group.findById(groupId);
 
     if (!group) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Group not found',
+      });
+    }
+
+    // Verify group belongs to current club
+    if (group.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Group not found',
@@ -301,10 +351,19 @@ export const updateGroup = async (req, res, next) => {
     const { groupId } = req.params;
     const { name, description, avatar } = req.body;
     const userId = req.user._id;
+    const clubId = req.clubId;
 
     const group = await Group.findById(groupId);
 
     if (!group) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Group not found',
+      });
+    }
+
+    // Verify group belongs to current club
+    if (group.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Group not found',

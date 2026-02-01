@@ -17,6 +17,15 @@ import mongoose from 'mongoose';
 
 const messageSchema = new mongoose.Schema(
   {
+    // Which club this message belongs to
+    // All messages are scoped to a club
+    club: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Club',
+      required: [true, 'Message must belong to a club'],
+      index: true,
+    },
+
     // Who sent the message
     sender: {
       type: mongoose.Schema.Types.ObjectId,
@@ -165,14 +174,14 @@ const messageSchema = new mongoose.Schema(
 // Indexes speed up queries. We frequently query by conversationId + createdAt.
 // =============================================================================
 
-// Compound index for fetching conversation messages in order
-messageSchema.index({ conversationId: 1, createdAt: -1 });
+// Compound index for fetching conversation messages in order (club-scoped)
+messageSchema.index({ club: 1, conversationId: 1, createdAt: -1 });
 
-// Index for finding unread messages for a user
-messageSchema.index({ recipient: 1, 'readBy.user': 1 });
+// Index for finding unread messages for a user in a club
+messageSchema.index({ club: 1, recipient: 1, 'readBy.user': 1 });
 
-// Index for group messages
-messageSchema.index({ group: 1, createdAt: -1 });
+// Index for group messages in a club
+messageSchema.index({ club: 1, group: 1, createdAt: -1 });
 
 // =============================================================================
 // STATIC METHODS
@@ -180,12 +189,13 @@ messageSchema.index({ group: 1, createdAt: -1 });
 // Helper functions attached to the model itself
 // =============================================================================
 
-// Generate a consistent conversation ID for DMs between two users
+// Generate a consistent conversation ID for DMs between two users in a club
 // Always sorts the IDs so the same conversation ID is generated regardless
 // of who initiates the conversation
-messageSchema.statics.getDMConversationId = function(userId1, userId2) {
+// Format: dm_clubId_sortedUserId1_sortedUserId2
+messageSchema.statics.getDMConversationId = function(clubId, userId1, userId2) {
   const ids = [userId1.toString(), userId2.toString()].sort();
-  return `dm_${ids[0]}_${ids[1]}`;
+  return `dm_${clubId.toString()}_${ids[0]}_${ids[1]}`;
 };
 
 // =============================================================================

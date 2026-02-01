@@ -6,8 +6,7 @@
 // - Add contact
 // - Remove contact
 //
-// Contacts are stored as an array of user IDs in the User model.
-// This is a simple approach suitable for our user base (10-50 users).
+// Contacts are stored per club: [{user: ObjectId, club: ObjectId}]
 // =============================================================================
 
 import User from '../models/User.js';
@@ -17,19 +16,27 @@ import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 // GET ALL CONTACTS
 // =============================================================================
 // GET /api/contacts
-// Returns the current user's contact list with user details
+// Returns the current user's contact list for the current club
 // =============================================================================
 
 export const getContacts = asyncHandler(async (req, res) => {
-  // Find current user and populate contacts with their details
+  const clubId = req.clubId;
+
+  // Find current user and populate contacts
   const user = await User.findById(req.userId)
-    .populate('contacts', 'username displayName avatar');
+    .populate('contacts.user', 'username displayName avatar');
+
+  // Filter contacts to only include those in the current club
+  const clubContacts = user.contacts
+    ?.filter((c) => c.club.toString() === clubId.toString())
+    .map((c) => c.user)
+    .filter(Boolean) || []; // Filter out any null values
 
   res.status(200).json({
     status: 'success',
-    results: user.contacts.length,
+    results: clubContacts.length,
     data: {
-      contacts: user.contacts,
+      contacts: clubContacts,
     },
   });
 });
@@ -38,11 +45,12 @@ export const getContacts = asyncHandler(async (req, res) => {
 // ADD CONTACT
 // =============================================================================
 // POST /api/contacts/:userId
-// Add a user to the current user's contact list
+// Add a user to the current user's contact list in the current club
 // =============================================================================
 
 export const addContact = asyncHandler(async (req, res) => {
   const { userId } = req.params;
+  const clubId = req.clubId;
 
   // Can't add yourself
   if (userId === req.userId.toString()) {
@@ -55,14 +63,26 @@ export const addContact = asyncHandler(async (req, res) => {
     throw new AppError('User not found', 404);
   }
 
-  // Check if already a contact
+  // Check if user is in the same club
+  const userInClub = userToAdd.clubMemberships?.some(
+    (m) => m.club.toString() === clubId.toString() && m.isActive
+  );
+  if (!userInClub) {
+    throw new AppError('User is not a member of this club', 404);
+  }
+
+  // Check if already a contact in this club
   const currentUser = await User.findById(req.userId);
-  if (currentUser.contacts.includes(userId)) {
-    throw new AppError('User is already in your contacts', 400);
+  const isAlreadyContact = currentUser.contacts?.some(
+    (c) => c.user.toString() === userId && c.club.toString() === clubId.toString()
+  );
+
+  if (isAlreadyContact) {
+    throw new AppError('User is already in your contacts for this club', 400);
   }
 
   // Add to contacts
-  currentUser.contacts.push(userId);
+  currentUser.contacts.push({ user: userId, club: clubId });
   await currentUser.save();
 
   res.status(200).json({
@@ -83,22 +103,23 @@ export const addContact = asyncHandler(async (req, res) => {
 // REMOVE CONTACT
 // =============================================================================
 // DELETE /api/contacts/:userId
-// Remove a user from the current user's contact list
+// Remove a user from the current user's contact list in the current club
 // =============================================================================
 
 export const removeContact = asyncHandler(async (req, res) => {
   const { userId } = req.params;
+  const clubId = req.clubId;
 
   // Find current user
   const currentUser = await User.findById(req.userId);
 
-  // Check if user is in contacts
-  const contactIndex = currentUser.contacts.findIndex(
-    (id) => id.toString() === userId
+  // Check if user is in contacts for this club
+  const contactIndex = currentUser.contacts?.findIndex(
+    (c) => c.user.toString() === userId && c.club.toString() === clubId.toString()
   );
 
-  if (contactIndex === -1) {
-    throw new AppError('User is not in your contacts', 400);
+  if (contactIndex === -1 || contactIndex === undefined) {
+    throw new AppError('User is not in your contacts for this club', 400);
   }
 
   // Remove from contacts
@@ -115,16 +136,17 @@ export const removeContact = asyncHandler(async (req, res) => {
 // CHECK IF CONTACT
 // =============================================================================
 // GET /api/contacts/check/:userId
-// Check if a user is in the current user's contacts
+// Check if a user is in the current user's contacts for the current club
 // =============================================================================
 
 export const checkContact = asyncHandler(async (req, res) => {
   const { userId } = req.params;
+  const clubId = req.clubId;
 
   const currentUser = await User.findById(req.userId);
-  const isContact = currentUser.contacts.some(
-    (id) => id.toString() === userId
-  );
+  const isContact = currentUser.contacts?.some(
+    (c) => c.user.toString() === userId && c.club.toString() === clubId.toString()
+  ) || false;
 
   res.status(200).json({
     status: 'success',

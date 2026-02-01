@@ -30,6 +30,7 @@ import ConversationView from './ConversationView';
 import GroupList from '../groups/GroupList';
 import CreateGroupModal from '../groups/CreateGroupModal';
 import ProfileSettings from '../profile/ProfileSettings';
+import ClubSwitcher from '../clubs/ClubSwitcher';
 
 // =============================================================================
 // MOBILE BREAKPOINT HOOK
@@ -100,6 +101,11 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
             </svg>
           </button>
         )}
+      </div>
+
+      {/* Club Switcher */}
+      <div className="p-2 border-b border-[var(--color-border)]">
+        <ClubSwitcher />
       </div>
 
       {/* Navigation buttons */}
