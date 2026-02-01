@@ -15,11 +15,6 @@ export default function ClubSwitcher() {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // DEBUG: Log on mount to verify new code is deployed
-  useEffect(() => {
-    console.log('[ClubSwitcher] v2 - Component mounted. Clubs:', clubs?.length);
-  }, [clubs]);
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -34,17 +29,12 @@ export default function ClubSwitcher() {
 
   // Handle club switch
   const handleSwitchClub = async (clubId) => {
-    window.alert('CLICKED: ' + clubId);  // DEBUG - remove later
-    console.log('[ClubSwitcher] Switching to club:', clubId);
-
     if (clubId === activeClub?._id) {
-      console.log('[ClubSwitcher] Same club, skipping');
       setIsOpen(false);
       return;
     }
 
     const result = await switchClub(clubId);
-    console.log('[ClubSwitcher] Switch result:', result);
 
     if (result.success) {
       setIsOpen(false);
@@ -53,7 +43,6 @@ export default function ClubSwitcher() {
       // Force page reload to refresh all club-scoped data
       window.location.reload();
     } else {
-      console.error('[ClubSwitcher] Switch failed:', result.error);
       alert('Failed to switch club: ' + (result.error || 'Unknown error'));
     }
   };

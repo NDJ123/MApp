@@ -192,7 +192,6 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
     message: 'MApp server is running',
-    version: 'v2-clubswitch',  // DEBUG: Version marker to verify deployment
     environment: NODE_ENV,
     timestamp: new Date().toISOString(),
   });

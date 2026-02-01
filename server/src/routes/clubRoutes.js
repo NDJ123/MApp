@@ -44,16 +44,6 @@ import {
 
 const router = express.Router();
 
-// DEBUG: Test route to verify club routes are loaded
-router.get('/test-routes', (req, res) => {
-  res.json({ status: 'ok', message: 'Club routes are loaded', version: 'v4-debug' });
-});
-
-// DEBUG: Test the /:clubId/switch pattern without auth
-router.put('/:clubId/test-switch', (req, res) => {
-  res.json({ status: 'ok', message: 'Test switch route works', clubId: req.params.clubId });
-});
-
 // All club routes require authentication
 router.use(protect);
 
