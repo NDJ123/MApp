@@ -5,22 +5,26 @@
 // Clicking a group navigates to the group conversation.
 // =============================================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { groupAPI } from '../../services/api';
+import { useClub } from '../../context/ClubContext';
 
 function GroupList({ onCreateGroup }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const location = useLocation();
+  const { activeClubId, isLoading: isClubLoading } = useClub();
 
-  // Fetch groups on mount
-  useEffect(() => {
-    fetchGroups();
-  }, []);
+  const fetchGroups = useCallback(async () => {
+    // Wait for club context to be ready
+    if (!activeClubId) {
+      setGroups([]);
+      setLoading(false);
+      return;
+    }
 
-  const fetchGroups = async () => {
     try {
       setLoading(true);
       const response = await groupAPI.getAll();
@@ -32,7 +36,12 @@ function GroupList({ onCreateGroup }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeClubId]);
+
+  // Fetch groups when club context is ready
+  useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
 
   // Check if a group is currently selected
   const isGroupActive = (groupId) => {
@@ -40,7 +49,7 @@ function GroupList({ onCreateGroup }) {
   };
 
   // Loading state
-  if (loading) {
+  if (loading || isClubLoading) {
     return (
       <div className="px-3 py-2">
         <div className="animate-pulse space-y-2">
