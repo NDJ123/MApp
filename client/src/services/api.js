@@ -508,7 +508,7 @@ export const clubAPI = {
    * Switch the user's active club
    * @param {string} clubId - Club ID to switch to
    */
-  switchClub: (clubId) => api.post(`/clubs/${clubId}/switch`),
+  switchClub: (clubId) => api.put(`/clubs/${clubId}/switch`),
 
   /**
    * Update membership settings (e.g., set active/inactive)
