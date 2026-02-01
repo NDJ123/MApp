@@ -29,6 +29,7 @@ export default function ClubSwitcher() {
 
   // Handle club switch
   const handleSwitchClub = async (clubId) => {
+    window.alert('CLICKED: ' + clubId);  // DEBUG - remove later
     console.log('[ClubSwitcher] Switching to club:', clubId);
 
     if (clubId === activeClub?._id) {
