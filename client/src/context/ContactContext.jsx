@@ -9,6 +9,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { contactAPI } from '../services/api';
 import { useAuth } from './AuthContext';
+import { useClub } from './ClubContext';
 
 // Create the context
 const ContactContext = createContext(null);
@@ -19,6 +20,7 @@ const ContactContext = createContext(null);
 
 export function ContactProvider({ children }) {
   const { user } = useAuth();
+  const { activeClubId, isLoading: isClubLoading } = useClub();
   const [contacts, setContacts] = useState([]);
   const [contactIds, setContactIds] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +31,8 @@ export function ContactProvider({ children }) {
   // ---------------------------------------------------------------------------
 
   const fetchContacts = useCallback(async () => {
-    if (!user) {
+    // Wait for both user and club context to be ready
+    if (!user || !activeClubId) {
       setContacts([]);
       setContactIds(new Set());
       setIsLoading(false);
@@ -51,7 +54,7 @@ export function ContactProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, activeClubId]);
 
   // ---------------------------------------------------------------------------
   // INITIAL LOAD
@@ -117,7 +120,7 @@ export function ContactProvider({ children }) {
   const value = {
     contacts,
     contactIds,
-    isLoading,
+    isLoading: isLoading || isClubLoading,
     error,
     fetchContacts,
     addContact,
