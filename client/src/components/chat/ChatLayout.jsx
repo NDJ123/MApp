@@ -70,9 +70,6 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Debug: Log user superadmin status
-  console.log('[Sidebar] user.isSuperadmin:', user?.isSuperadmin, 'user:', user);
-
   // Check which page is active
   const isDirectoryActive = location.pathname === '/chat/directory';
   const isInvitesActive = location.pathname === '/chat/invites';
@@ -249,6 +246,10 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
               <p className="text-sm font-medium truncate">{user?.displayName || 'User'}</p>
               <p className="text-xs text-[var(--color-text-tertiary)] truncate">
                 @{user?.username || 'username'}
+              </p>
+              {/* DEBUG: Remove after testing */}
+              <p className="text-xs text-red-500">
+                SA: {user?.isSuperadmin ? 'YES' : 'NO'}
               </p>
             </div>
           </Link>
