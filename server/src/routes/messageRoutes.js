@@ -2,7 +2,8 @@
 // MESSAGE ROUTES
 // =============================================================================
 // API endpoints for message operations.
-// All routes require authentication.
+// All routes require authentication and club context.
+// Messages are scoped to clubs - each club has its own conversations.
 //
 // Routes:
 // GET    /api/messages/dm/:userId      - Get DM conversation history
@@ -13,6 +14,7 @@
 
 import express from 'express';
 import { protect } from '../middleware/auth.js';
+import { clubContext } from '../middleware/club.js';
 import {
   getDMMessages,
   markDMAsRead,
@@ -26,8 +28,9 @@ import {
 
 const router = express.Router();
 
-// All message routes require authentication
+// All message routes require authentication and club context
 router.use(protect);
+router.use(clubContext);
 
 // DM conversation routes
 router.get('/dm/:userId', getDMMessages);

@@ -24,22 +24,27 @@ export const getDMMessages = async (req, res, next) => {
   try {
     const currentUserId = req.user._id;
     const otherUserId = req.params.userId;
+    const clubId = req.clubId;
 
-    // Validate other user exists
-    const otherUser = await User.findById(otherUserId);
+    // Validate other user exists and is in the same club
+    const otherUser = await User.findOne({
+      _id: otherUserId,
+      'clubMemberships.club': clubId,
+      'clubMemberships.isActive': true,
+    });
     if (!otherUser) {
       return res.status(404).json({
         status: 'error',
-        message: 'User not found',
+        message: 'User not found in this club',
       });
     }
 
-    // Check if user has blocked the other user
+    // Check if user has blocked the other user (in this club)
     const currentUser = await User.findById(currentUserId);
-    const isBlocked = currentUser.hasBlocked(otherUserId);
+    const isBlocked = currentUser.hasBlocked(otherUserId, clubId);
 
-    // Generate conversation ID
-    const conversationId = Message.getDMConversationId(currentUserId, otherUserId);
+    // Generate conversation ID (now includes clubId)
+    const conversationId = Message.getDMConversationId(currentUserId, otherUserId, clubId);
 
     // Pagination parameters
     const page = parseInt(req.query.page) || 1;
@@ -105,9 +110,10 @@ export const markDMAsRead = async (req, res, next) => {
   try {
     const currentUserId = req.user._id;
     const otherUserId = req.params.userId;
+    const clubId = req.clubId;
 
-    // Generate conversation ID
-    const conversationId = Message.getDMConversationId(currentUserId, otherUserId);
+    // Generate conversation ID (now includes clubId)
+    const conversationId = Message.getDMConversationId(currentUserId, otherUserId, clubId);
 
     // Find unread messages sent by the other user
     const unreadMessages = await Message.find({
@@ -144,9 +150,11 @@ export const markDMAsRead = async (req, res, next) => {
 export const getUnreadCount = async (req, res, next) => {
   try {
     const currentUserId = req.user._id;
+    const clubId = req.clubId;
 
-    // Count messages where current user is recipient and hasn't read
+    // Count messages where current user is recipient, hasn't read, and in current club
     const unreadCount = await Message.countDocuments({
+      club: clubId,
       recipient: currentUserId,
       'readBy.user': { $ne: currentUserId },
       deleted: false,
@@ -174,10 +182,19 @@ export const getGroupMessages = async (req, res, next) => {
   try {
     const currentUserId = req.user._id;
     const { groupId } = req.params;
+    const clubId = req.clubId;
 
-    // Verify group exists and user is a member
+    // Verify group exists and belongs to current club
     const group = await Group.findById(groupId);
     if (!group) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Group not found',
+      });
+    }
+
+    // Verify group is in current club
+    if (group.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Group not found',
@@ -263,6 +280,7 @@ export const addReaction = async (req, res, next) => {
     const { messageId } = req.params;
     const { emoji } = req.body;
     const currentUserId = req.user._id;
+    const clubId = req.clubId;
 
     if (!emoji) {
       return res.status(400).json({
@@ -273,6 +291,14 @@ export const addReaction = async (req, res, next) => {
 
     const message = await Message.findById(messageId);
     if (!message) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Message not found',
+      });
+    }
+
+    // Verify message belongs to current club
+    if (message.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Message not found',
@@ -330,6 +356,7 @@ export const removeReaction = async (req, res, next) => {
     const { messageId } = req.params;
     const { emoji } = req.body;
     const currentUserId = req.user._id;
+    const clubId = req.clubId;
 
     if (!emoji) {
       return res.status(400).json({
@@ -340,6 +367,14 @@ export const removeReaction = async (req, res, next) => {
 
     const message = await Message.findById(messageId);
     if (!message) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Message not found',
+      });
+    }
+
+    // Verify message belongs to current club
+    if (message.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Message not found',
@@ -380,6 +415,7 @@ export const removeReaction = async (req, res, next) => {
 export const searchMessages = async (req, res, next) => {
   try {
     const currentUserId = req.user._id;
+    const clubId = req.clubId;
     const { q, conversationId } = req.query;
 
     if (!q || q.trim().length < 2) {
@@ -394,8 +430,9 @@ export const searchMessages = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // Build the base query
+    // Build the base query - always filter by club
     const query = {
+      club: clubId,
       content: { $regex: searchQuery, $options: 'i' },
       deleted: false,
     };
@@ -406,15 +443,23 @@ export const searchMessages = async (req, res, next) => {
       if (conversationId.startsWith('group:')) {
         const groupId = conversationId.replace('group:', '');
         const group = await Group.findById(groupId);
-        if (!group || !group.isMember(currentUserId)) {
+        if (!group || group.club.toString() !== clubId.toString() || !group.isMember(currentUserId)) {
           return res.status(403).json({
             status: 'error',
             message: 'You do not have access to this conversation',
           });
         }
       } else {
-        // DM conversation - verify user is part of it
-        const [id1, id2] = conversationId.split(':');
+        // DM conversation - verify it's in current club and user is part of it
+        // New format: dm_clubId_id1_id2
+        const parts = conversationId.split('_');
+        if (parts.length !== 4 || parts[0] !== 'dm' || parts[1] !== clubId.toString()) {
+          return res.status(403).json({
+            status: 'error',
+            message: 'You do not have access to this conversation',
+          });
+        }
+        const [, , id1, id2] = parts;
         if (id1 !== currentUserId.toString() && id2 !== currentUserId.toString()) {
           return res.status(403).json({
             status: 'error',
@@ -424,12 +469,16 @@ export const searchMessages = async (req, res, next) => {
       }
       query.conversationId = conversationId;
     } else {
-      // Search across all user's conversations
-      // Get all groups user is a member of
-      const userGroups = await Group.find({ 'members.user': currentUserId, isActive: true });
+      // Search across all user's conversations in this club
+      // Get all groups user is a member of in this club
+      const userGroups = await Group.find({
+        club: clubId,
+        'members.user': currentUserId,
+        isActive: true
+      });
       const groupConversationIds = userGroups.map(g => `group:${g._id}`);
 
-      // Build conversation filter: user's DMs OR user's groups
+      // Build conversation filter: user's DMs OR user's groups (already filtered by club above)
       query.$or = [
         { sender: currentUserId },
         { recipient: currentUserId },
@@ -472,9 +521,18 @@ export const searchMessages = async (req, res, next) => {
 export const fetchLinkPreview = async (req, res, next) => {
   try {
     const { messageId } = req.params;
+    const clubId = req.clubId;
 
     const message = await Message.findById(messageId);
     if (!message) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Message not found',
+      });
+    }
+
+    // Verify message belongs to current club
+    if (message.club.toString() !== clubId.toString()) {
       return res.status(404).json({
         status: 'error',
         message: 'Message not found',
