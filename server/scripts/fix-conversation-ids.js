@@ -12,11 +12,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Connect to MongoDB
-const MONGODB_URI = process.env.MONGODB_URI;
+// Connect to MongoDB (support both MONGODB_URI and MONGO_URI)
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 
 if (!MONGODB_URI) {
-  console.error('MONGODB_URI environment variable is not set');
+  console.error('MONGODB_URI or MONGO_URI environment variable is not set');
   process.exit(1);
 }
 
@@ -33,10 +33,13 @@ async function fixConversationIds() {
 
     const Message = mongoose.model('Message', new mongoose.Schema({}, { strict: false }));
 
-    // Find all DM messages (have recipient, no group)
+    // Find all DM messages (have recipient, no group or group is null)
     const dmMessages = await Message.find({
       recipient: { $exists: true, $ne: null },
-      group: { $exists: false },
+      $or: [
+        { group: { $exists: false } },
+        { group: null }
+      ],
       club: { $exists: true, $ne: null },
     });
 
