@@ -580,8 +580,14 @@ function ConversationView() {
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [isUpdatingGroupAvatar, setIsUpdatingGroupAvatar] = useState(false);
 
+  // Infinite scroll state
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   // Refs
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
   const groupAvatarInputRef = useRef(null);
@@ -607,6 +613,61 @@ function ConversationView() {
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // LOAD MORE MESSAGES (INFINITE SCROLL)
+  // ---------------------------------------------------------------------------
+
+  const loadMoreMessages = useCallback(async () => {
+    if (isLoadingMore || !hasMoreMessages) return;
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    try {
+      setIsLoadingMore(true);
+      const nextPage = currentPage + 1;
+
+      const params = { page: nextPage, limit: 50 };
+      const response = isGroupChat
+        ? await messageAPI.getGroupMessages(groupId, params)
+        : await messageAPI.getDMMessages(userId, params);
+
+      const olderMessages = response.data.data.messages;
+      const pagination = response.data.data.pagination;
+
+      if (olderMessages.length > 0) {
+        // Save scroll height before prepending
+        const previousScrollHeight = container.scrollHeight;
+
+        setMessages(prev => [...olderMessages, ...prev]);
+        setCurrentPage(nextPage);
+        setHasMoreMessages(pagination.hasMore);
+
+        // Restore scroll position after DOM update
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight - previousScrollHeight;
+        });
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (err) {
+      console.error('Failed to load more messages:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMoreMessages, currentPage, isGroupChat, groupId, userId]);
+
+  // Handle scroll event for infinite scroll
+  const handleMessagesScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Load more when scrolled near the top (within 100px)
+    if (container.scrollTop < 100 && hasMoreMessages && !isLoadingMore) {
+      loadMoreMessages();
+    }
+  }, [hasMoreMessages, isLoadingMore, loadMoreMessages]);
 
   // ---------------------------------------------------------------------------
   // SEARCH FUNCTIONS
@@ -721,6 +782,8 @@ function ConversationView() {
 
           setGroup(groupResponse.data.data.group);
           setMessages(messagesResponse.data.data.messages);
+          setCurrentPage(1);
+          setHasMoreMessages(messagesResponse.data.data.pagination?.hasMore || false);
         } else {
           // Fetch other user's info and DM message history
           const [userResponse, messagesResponse] = await Promise.all([
@@ -731,6 +794,8 @@ function ConversationView() {
           const userData = userResponse.data.data.user;
           setOtherUser(userData);
           setMessages(messagesResponse.data.data.messages);
+          setCurrentPage(1);
+          setHasMoreMessages(messagesResponse.data.data.pagination?.hasMore || false);
           setIsBlocked(userData.isBlocked || false);
           setIsMuted(userData.isMuted || false);
 
@@ -1511,7 +1576,11 @@ function ConversationView() {
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
+        className="flex-1 overflow-y-auto p-4"
+      >
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center text-[var(--color-text-tertiary)]">
@@ -1521,6 +1590,15 @@ function ConversationView() {
           </div>
         ) : (
           <div className="space-y-1">
+            {/* Loading indicator for older messages */}
+            {isLoadingMore && (
+              <div className="flex justify-center py-3">
+                <Spinner size="small" />
+              </div>
+            )}
+            {!hasMoreMessages && messages.length > 0 && (
+              <p className="text-center text-xs text-[var(--color-text-tertiary)] py-2">Beginning of conversation</p>
+            )}
             {messages.map((message, index) => {
               const isOwnMessage = message.sender._id === currentUser._id ||
                                    message.sender === currentUser._id;

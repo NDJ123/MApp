@@ -11,7 +11,7 @@
 // - Visual feedback for contact status
 // =============================================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { userAPI } from '../../services/api';
 import { useSocket } from '../../context/SocketContext';
 import { useContacts } from '../../context/ContactContext';
@@ -97,6 +97,7 @@ function UserDirectory() {
 
   // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [loadingUserId, setLoadingUserId] = useState(null); // Track which user action is loading
 
@@ -107,6 +108,9 @@ function UserDirectory() {
 
   // Debounce timer for search
   const [searchTimer, setSearchTimer] = useState(null);
+
+  // Ref for scroll container
+  const scrollContainerRef = useRef(null);
 
   // Socket context for online status
   const { isUserOnline } = useSocket();
@@ -131,6 +135,7 @@ function UserDirectory() {
       const { users: userList, pagination: paginationData } = usersResponse.data.data;
       setUsers(userList);
       setPagination(paginationData);
+      setPage(1);
 
     } catch (err) {
       setError(err.message || 'Failed to load users');
@@ -182,24 +187,40 @@ function UserDirectory() {
   }, [searchTimer]);
 
   // -------------------------------------------------------------------------
-  // PAGINATION HANDLERS
+  // INFINITE SCROLL - LOAD MORE
   // -------------------------------------------------------------------------
 
-  const handlePreviousPage = () => {
-    if (page > 1) {
-      const newPage = page - 1;
-      setPage(newPage);
-      fetchUsers(searchQuery, newPage);
-    }
-  };
+  const loadMoreUsers = useCallback(async () => {
+    if (isLoadingMore || !pagination.hasMore) return;
 
-  const handleNextPage = () => {
-    if (pagination.hasMore) {
-      const newPage = page + 1;
-      setPage(newPage);
-      fetchUsers(searchQuery, newPage);
+    try {
+      setIsLoadingMore(true);
+      const nextPage = page + 1;
+
+      const usersResponse = await userAPI.getAll({ search: searchQuery, page: nextPage, limit: 20 });
+      const { users: newUsers, pagination: paginationData } = usersResponse.data.data;
+
+      setUsers(prev => [...prev, ...newUsers]);
+      setPagination(paginationData);
+      setPage(nextPage);
+    } catch (err) {
+      console.error('Error loading more users:', err);
+    } finally {
+      setIsLoadingMore(false);
     }
-  };
+  }, [isLoadingMore, pagination.hasMore, page, searchQuery]);
+
+  // Handle scroll event for infinite scroll
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // Load more when scrolled near the bottom (within 200px)
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+    if (nearBottom && pagination.hasMore && !isLoadingMore) {
+      loadMoreUsers();
+    }
+  }, [pagination.hasMore, isLoadingMore, loadMoreUsers]);
 
   // -------------------------------------------------------------------------
   // CONTACT ACTIONS
@@ -266,7 +287,7 @@ function UserDirectory() {
       </div>
 
       {/* Content area */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-6">
         {/* Loading state */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
@@ -318,27 +339,16 @@ function UserDirectory() {
               </div>
             )}
 
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 mt-6 pt-6 border-t border-[var(--color-border)]">
-                <button
-                  onClick={handlePreviousPage}
-                  disabled={page === 1}
-                  className="px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-[var(--color-text-secondary)]">
-                  Page {page} of {pagination.totalPages}
-                </span>
-                <button
-                  onClick={handleNextPage}
-                  disabled={!pagination.hasMore}
-                  className="px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
+            {/* Infinite scroll loading indicator */}
+            {isLoadingMore && (
+              <div className="flex items-center justify-center py-6">
+                <Spinner size="small" />
               </div>
+            )}
+            {!pagination.hasMore && users.length > 0 && pagination.total > 20 && (
+              <p className="text-center text-sm text-[var(--color-text-tertiary)] mt-6 pt-6 border-t border-[var(--color-border)]">
+                All {pagination.total} users loaded
+              </p>
             )}
           </>
         )}
