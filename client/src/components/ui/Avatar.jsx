@@ -24,7 +24,7 @@ export default function Avatar({
       className="w-full h-full rounded-full object-cover"
     />
   ) : (
-    <span className="font-semibold text-white">{initial}</span>
+    <span className="font-semibold text-white drop-shadow-sm">{initial}</span>
   );
 
   const onlineDotSize =
@@ -34,19 +34,24 @@ export default function Avatar({
       ? 'w-3.5 h-3.5 border-2'
       : 'w-2.5 h-2.5 border-2';
 
+  // Orange-to-amber gradient for initials avatars
+  const bgClass = src
+    ? 'bg-[var(--color-surface-hover)]'
+    : 'bg-gradient-to-br from-[#F97316] to-[#F59E0B]';
+
   return (
     <div className={`relative flex-shrink-0 ${className}`}>
       {isOnline ? (
         <div className="avatar-ring-online">
           <div
-            className={`${sizeClass} rounded-full bg-[var(--color-primary)] flex items-center justify-center overflow-hidden`}
+            className={`${sizeClass} rounded-full ${bgClass} flex items-center justify-center overflow-hidden`}
           >
             {avatarContent}
           </div>
         </div>
       ) : (
         <div
-          className={`${sizeClass} rounded-full bg-[var(--color-primary)] flex items-center justify-center overflow-hidden`}
+          className={`${sizeClass} rounded-full ${bgClass} flex items-center justify-center overflow-hidden`}
         >
           {avatarContent}
         </div>
