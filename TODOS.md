@@ -16,6 +16,20 @@
 - **Effort**: M
 - **Depends on**: UI redesign (done)
 
+### Voice messages (iOS app)
+- **What**: Long-press send button to record a voice message with live waveform visualization
+- **Why**: Padel players at courts often want to quickly send audio ("Running 5 mins late!") rather than typing. Differentiator from web-only experience
+- **Context**: Requires expo-av for recording, backend support for audio file storage/streaming, waveform visualization component. Best built after core messaging is stable (post Phase 3 of iOS plan)
+- **Effort**: M
+- **Depends on**: iOS app Phase 3 (Advanced Messaging)
+
+### Certificate pinning (iOS app)
+- **What**: Pin the API server's TLS certificate in the iOS app to prevent MITM attacks
+- **Why**: Sports clubs often have open WiFi networks where MITM is feasible. Certificate pinning prevents interception of API calls even on compromised networks
+- **Context**: Can be done with `react-native-ssl-pinning` or custom Expo config plugin. Adds complexity to dev/debug workflow (need to bypass for development builds)
+- **Effort**: S
+- **Depends on**: iOS app Phase 1
+
 ## P3 - Backlog
 
 ### Implement password reset email sending
