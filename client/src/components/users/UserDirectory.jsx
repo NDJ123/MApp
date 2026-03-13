@@ -12,10 +12,14 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { Search, UserPlus, UserMinus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { userAPI } from '../../services/api';
 import { useSocket } from '../../context/SocketContext';
 import { useContacts } from '../../context/ContactContext';
-import Spinner from '../common/Spinner';
+import Avatar from '../ui/Avatar';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
+import { CardSkeleton } from '../ui/Skeleton';
 
 // =============================================================================
 // USER CARD COMPONENT
@@ -24,29 +28,15 @@ import Spinner from '../common/Spinner';
 // =============================================================================
 
 function UserCard({ user, isContact, isOnline, onAddContact, onRemoveContact, isLoading }) {
-  // Get first letter for avatar
-  const initial = (user.displayName || user.username || '?')[0].toUpperCase();
-
   return (
-    <div className="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors">
+    <div className="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-all duration-200">
       {/* Avatar with online indicator */}
-      <div className="relative flex-shrink-0">
-        <div className="w-12 h-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-lg font-medium">
-          {user.avatar ? (
-            <img
-              src={user.avatar}
-              alt={user.displayName}
-              className="w-full h-full rounded-full object-cover"
-            />
-          ) : (
-            initial
-          )}
-        </div>
-        {/* Online indicator */}
-        {isOnline && (
-          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[var(--color-surface)]" />
-        )}
-      </div>
+      <Avatar
+        src={user.avatar}
+        name={user.displayName || user.username || '?'}
+        size="lg"
+        isOnline={isOnline}
+      />
 
       {/* User info */}
       <div className="flex-1 min-w-0">
@@ -59,26 +49,28 @@ function UserCard({ user, isContact, isOnline, onAddContact, onRemoveContact, is
       </div>
 
       {/* Action button */}
-      <button
-        onClick={() => isContact ? onRemoveContact(user._id) : onAddContact(user._id)}
-        disabled={isLoading}
-        className={`
-          px-4 py-2 rounded-lg text-sm font-medium transition-colors
-          ${isContact
-            ? 'bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] hover:bg-red-500 hover:text-white'
-            : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]'
-          }
-          disabled:opacity-50 disabled:cursor-not-allowed
-        `}
-      >
-        {isLoading ? (
-          <Spinner size="small" />
-        ) : isContact ? (
-          'Remove'
-        ) : (
-          'Add Contact'
-        )}
-      </button>
+      {isContact ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          isLoading={isLoading}
+          onClick={() => onRemoveContact(user._id)}
+          className="hover:!bg-[var(--color-error)] hover:!text-white hover:!border-transparent"
+        >
+          <UserMinus className="w-4 h-4" />
+          Remove
+        </Button>
+      ) : (
+        <Button
+          variant="primary"
+          size="sm"
+          isLoading={isLoading}
+          onClick={() => onAddContact(user._id)}
+        >
+          <UserPlus className="w-4 h-4" />
+          Add Contact
+        </Button>
+      )}
     </div>
   );
 }
@@ -237,53 +229,38 @@ function UserDirectory() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-6 border-b border-[var(--color-border)]">
-        <h1 className="text-2xl font-bold mb-4">User Directory</h1>
+        <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-4">User Directory</h1>
 
         {/* Search input */}
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={handleSearchChange}
-            placeholder="Search users by name or username..."
-            className="w-full px-4 py-3 pl-10 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-          />
-          {/* Search icon */}
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-tertiary)]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
+        <Input
+          icon={Search}
+          value={searchQuery}
+          onChange={handleSearchChange}
+          placeholder="Search users by name or username..."
+        />
       </div>
 
       {/* Content area */}
       <div className="flex-1 overflow-y-auto p-6">
         {/* Loading state */}
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Spinner size="large" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <CardSkeleton key={i} />
+            ))}
           </div>
         )}
 
         {/* Error state */}
         {error && !isLoading && (
           <div className="text-center py-12">
-            <p className="text-red-500 mb-4">{error}</p>
-            <button
+            <p className="text-[var(--color-error)] mb-4">{error}</p>
+            <Button
+              variant="primary"
               onClick={() => fetchUsers(searchQuery, page)}
-              className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)]"
             >
               Try Again
-            </button>
+            </Button>
           </div>
         )}
 
@@ -321,23 +298,27 @@ function UserDirectory() {
             {/* Pagination */}
             {pagination.totalPages > 1 && (
               <div className="flex items-center justify-center gap-4 mt-6 pt-6 border-t border-[var(--color-border)]">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handlePreviousPage}
                   disabled={page === 1}
-                  className="px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+                  <ChevronLeft className="w-4 h-4" />
                   Previous
-                </button>
+                </Button>
                 <span className="text-sm text-[var(--color-text-secondary)]">
                   Page {page} of {pagination.totalPages}
                 </span>
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleNextPage}
                   disabled={!pagination.hasMore}
-                  className="px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
-                </button>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
             )}
           </>

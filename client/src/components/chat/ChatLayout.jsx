@@ -24,6 +24,22 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useClub } from '../../context/ClubContext';
+import { useTheme } from '../../context/ThemeContext';
+import {
+  X,
+  Menu,
+  Users,
+  Ticket,
+  Shield,
+  Star,
+  Settings,
+  LogOut,
+  MessageCircle,
+  Moon,
+  Sun,
+  Monitor,
+} from 'lucide-react';
+import Avatar from '../ui/Avatar';
 import ContactList from '../users/ContactList';
 import UserDirectory from '../users/UserDirectory';
 import InviteManagement from '../invites/InviteManagement';
@@ -67,6 +83,7 @@ function useIsMobile() {
 function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
   const { user, logout } = useAuth();
   const { isClubAdmin } = useClub();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -91,8 +108,8 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
     if (onNavigate) onNavigate();
   };
 
-  // Get user initial for avatar
-  const userInitial = user?.displayName?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'U';
+  // Theme icon based on current theme
+  const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
 
   return (
     <aside className="w-[var(--sidebar-width)] h-full flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-border)]">
@@ -103,12 +120,10 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="md:hidden p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+            className="md:hidden p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-[var(--radius-md)] transition-colors"
             aria-label="Close sidebar"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-5 h-5" />
           </button>
         )}
       </div>
@@ -124,17 +139,14 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
           to="/chat/directory"
           onClick={handleNavClick}
           className={`
-            flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+            flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-colors
             ${isDirectoryActive
-              ? 'bg-[var(--color-primary)] bg-opacity-10 text-[var(--color-primary)]'
-              : 'hover:bg-[var(--color-surface-hover)]'
+              ? 'bg-[var(--color-primary-muted)] text-[var(--color-primary)]'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
             }
           `}
         >
-          {/* Users icon */}
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
+          <Users className="w-5 h-5" />
           <span className="text-sm font-medium">User Directory</span>
         </Link>
 
@@ -142,17 +154,14 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
           to="/chat/invites"
           onClick={handleNavClick}
           className={`
-            flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+            flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-colors
             ${isInvitesActive
-              ? 'bg-[var(--color-primary)] bg-opacity-10 text-[var(--color-primary)]'
-              : 'hover:bg-[var(--color-surface-hover)]'
+              ? 'bg-[var(--color-primary-muted)] text-[var(--color-primary)]'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
             }
           `}
         >
-          {/* Invite/ticket icon */}
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-          </svg>
+          <Ticket className="w-5 h-5" />
           <span className="text-sm font-medium">Invite Users</span>
         </Link>
 
@@ -162,17 +171,14 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
             to="/chat/admin"
             onClick={handleNavClick}
             className={`
-              flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+              flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-colors
               ${isAdminActive
-                ? 'bg-[var(--color-primary)] bg-opacity-10 text-[var(--color-primary)]'
-                : 'hover:bg-[var(--color-surface-hover)]'
+                ? 'bg-[var(--color-primary-muted)] text-[var(--color-primary)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
               }
             `}
           >
-            {/* Shield/admin icon */}
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
+            <Shield className="w-5 h-5" />
             <span className="text-sm font-medium">Club Admin</span>
           </Link>
         )}
@@ -183,17 +189,14 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
             to="/chat/superadmin"
             onClick={handleNavClick}
             className={`
-              flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+              flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-colors
               ${isSuperadminActive
-                ? 'bg-[var(--color-primary)] bg-opacity-10 text-[var(--color-primary)]'
-                : 'hover:bg-[var(--color-surface-hover)]'
+                ? 'bg-[var(--color-primary-muted)] text-[var(--color-primary)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
               }
             `}
           >
-            {/* Star/superadmin icon */}
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-            </svg>
+            <Star className="w-5 h-5" />
             <span className="text-sm font-medium">Superadmin</span>
           </Link>
         )}
@@ -229,53 +232,47 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
           <Link
             to="/chat/profile"
             onClick={handleNavClick}
-            className="flex items-center gap-3 flex-1 min-w-0 hover:bg-[var(--color-surface-hover)] rounded-lg p-1 -m-1 transition-colors"
+            className="flex items-center gap-3 flex-1 min-w-0 hover:bg-[var(--color-surface-hover)] rounded-[var(--radius-md)] p-1 -m-1 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-              {user?.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.displayName}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                userInitial
-              )}
-            </div>
+            <Avatar
+              src={user?.avatar}
+              name={user?.displayName || user?.username || 'U'}
+              size="sm"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user?.displayName || 'User'}</p>
               <p className="text-xs text-[var(--color-text-tertiary)] truncate">
                 @{user?.username || 'username'}
               </p>
-              {/* DEBUG: Remove after testing */}
-              <p className="text-xs text-red-500">
-                SA: {user?.isSuperadmin ? 'YES' : 'NO'}
-              </p>
             </div>
           </Link>
+
+          {/* Theme toggle button */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-[var(--radius-md)] transition-colors"
+            title={`Theme: ${theme}`}
+          >
+            <ThemeIcon className="w-5 h-5" />
+          </button>
 
           {/* Settings button */}
           <Link
             to="/chat/profile"
             onClick={handleNavClick}
-            className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+            className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-[var(--radius-md)] transition-colors"
             title="Profile Settings"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            <Settings className="w-5 h-5" />
           </Link>
 
           {/* Logout button */}
           <button
             onClick={handleLogout}
-            className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+            className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-[var(--radius-md)] transition-colors"
             title="Logout"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <LogOut className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -291,21 +288,25 @@ function WelcomeView({ onOpenSidebar, isMobile }) {
         <div className="h-14 px-4 flex items-center border-b border-[var(--color-border)] bg-[var(--color-surface)]">
           <button
             onClick={onOpenSidebar}
-            className="p-2 -ml-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+            className="p-2 -ml-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-[var(--radius-md)] transition-colors"
             aria-label="Open menu"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <Menu className="w-6 h-6" />
           </button>
           <h1 className="ml-3 text-lg font-semibold text-[var(--color-primary)] tracking-tight">Padel<span className="text-[var(--color-text-primary)]">talk</span></h1>
         </div>
       )}
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center px-4">
+          <div className="mx-auto mb-6 w-20 h-20 rounded-full bg-[var(--color-primary-muted)] flex items-center justify-center shadow-[var(--shadow-md)]">
+            <MessageCircle className="w-10 h-10 text-[var(--color-primary)]" />
+          </div>
           <h2 className="text-2xl font-semibold mb-2">Welcome to <span className="text-[var(--color-primary)]">Padel</span>talk</h2>
-          <p className="text-[var(--color-text-secondary)]">
-            {isMobile ? 'Tap the menu to start a conversation' : 'Select a conversation to start messaging'}
+          <p className="text-[var(--color-text-secondary)] max-w-sm mx-auto">
+            {isMobile ? 'Tap the menu to start a conversation' : 'Select a conversation from the sidebar to start messaging'}
+          </p>
+          <p className="text-xs text-[var(--color-text-tertiary)] mt-4">
+            Your messages are just a click away
           </p>
         </div>
       </div>
@@ -324,12 +325,10 @@ function MobileHeader({ onOpenSidebar, title }) {
     <div className="md:hidden h-14 px-4 flex items-center border-b border-[var(--color-border)] bg-[var(--color-surface)] flex-shrink-0">
       <button
         onClick={onOpenSidebar}
-        className="p-2 -ml-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+        className="p-2 -ml-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-[var(--radius-md)] transition-colors"
         aria-label="Open menu"
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
+        <Menu className="w-6 h-6" />
       </button>
       <h1 className="ml-3 text-lg font-semibold">{title}</h1>
     </div>
@@ -458,7 +457,7 @@ function ChatLayout() {
       {/* Sidebar - slides in/out on mobile */}
       <div
         className={`
-          ${isMobile ? 'fixed inset-y-0 left-0 z-50' : 'relative'}
+          ${isMobile ? 'fixed inset-y-0 left-0 z-50 shadow-[var(--shadow-md)]' : 'relative'}
           transform transition-transform duration-300 ease-in-out
           ${isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'}
         `}

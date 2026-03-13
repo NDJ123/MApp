@@ -7,7 +7,11 @@
 
 import { useState, useEffect } from 'react';
 import { inviteAPI } from '../../services/api';
+import { Plus, Copy, Check, Ticket } from 'lucide-react';
 import Spinner from '../common/Spinner';
+import Skeleton, { CardSkeleton } from '../ui/Skeleton';
+import Button from '../ui/Button';
+import Badge from '../ui/Badge';
 
 // =============================================================================
 // INVITE CARD COMPONENT
@@ -30,29 +34,25 @@ function InviteCard({ invite, onCopy }) {
 
   return (
     <div className={`
-      p-4 rounded-lg border
-      ${invite.used
-        ? 'bg-[var(--color-surface)] border-[var(--color-border)] opacity-60'
-        : 'bg-[var(--color-surface)] border-[var(--color-border)]'
-      }
+      p-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-sm)] bg-[var(--color-surface)]
+      ${invite.used ? 'opacity-60' : ''}
     `}>
       <div className="flex items-center justify-between">
         <div>
           {/* Invite code */}
-          <code className="text-lg font-mono font-bold tracking-wider">
-            {invite.code}
-          </code>
+          <div className="flex items-center gap-2">
+            <Ticket className="w-4 h-4 text-[var(--color-primary)]" />
+            <code className="text-lg font-mono font-bold tracking-wider text-[var(--color-text-primary)]">
+              {invite.code}
+            </code>
+          </div>
 
           {/* Status badge */}
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2">
             {invite.used ? (
-              <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
-                Used
-              </span>
+              <Badge variant="neutral">Used</Badge>
             ) : (
-              <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">
-                Available
-              </span>
+              <Badge variant="success">Available</Badge>
             )}
             <span className="text-xs text-[var(--color-text-tertiary)]">
               Created {createdDate}
@@ -69,18 +69,24 @@ function InviteCard({ invite, onCopy }) {
 
         {/* Copy button - only for unused invites */}
         {!invite.used && (
-          <button
+          <Button
+            variant={copied ? 'secondary' : 'primary'}
+            size="sm"
             onClick={handleCopy}
-            className={`
-              px-3 py-2 rounded-lg text-sm font-medium transition-colors
-              ${copied
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]'
-              }
-            `}
+            className={copied ? '!text-green-600 !border-green-300' : ''}
           >
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
+            {copied ? (
+              <>
+                <Check className="w-4 h-4" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                Copy
+              </>
+            )}
+          </Button>
         )}
       </div>
     </div>
@@ -158,7 +164,7 @@ function InviteManagement() {
       <div className="max-w-2xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Invite Management</h1>
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Invite Management</h1>
           <p className="mt-1 text-[var(--color-text-secondary)]">
             Generate invite codes to add new users to Padeltalk
           </p>
@@ -166,52 +172,51 @@ function InviteManagement() {
 
         {/* Create invite button */}
         <div className="mb-6">
-          <button
+          <Button
+            variant="primary"
+            size="md"
             onClick={handleCreateInvite}
+            isLoading={isCreating}
             disabled={isCreating}
-            className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:bg-[var(--color-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
             {isCreating ? (
-              <>
-                <Spinner size="small" />
-                Creating...
-              </>
+              'Creating...'
             ) : (
               <>
-                {/* Plus icon */}
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+                <Plus className="w-5 h-5" />
                 Generate New Invite
               </>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Success message */}
         {successMessage && (
-          <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm">
+          <div className="mb-4 p-3 bg-green-50 [data-theme=dark]:bg-green-900/30 border border-green-200 [data-theme=dark]:border-green-800 rounded-[var(--radius-md)] text-green-700 [data-theme=dark]:text-green-400 text-sm">
             {successMessage}
           </div>
         )}
 
         {/* Error message */}
         {error && (
-          <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+          <div className="mb-4 p-3 bg-red-50 [data-theme=dark]:bg-red-900/30 border border-red-200 [data-theme=dark]:border-red-800 rounded-[var(--radius-md)] text-[var(--color-error)] text-sm">
             {error}
           </div>
         )}
 
         {/* Invites list */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">Your Invites</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-3">Your Invites</h2>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Spinner />
+            <div className="space-y-3">
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
             </div>
           ) : invites.length === 0 ? (
             <div className="text-center py-8 text-[var(--color-text-tertiary)]">
+              <Ticket className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p>You haven't created any invites yet.</p>
               <p className="mt-1">Click "Generate New Invite" to create one.</p>
             </div>
@@ -225,8 +230,8 @@ function InviteManagement() {
         </div>
 
         {/* Instructions */}
-        <div className="mt-8 p-4 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
-          <h3 className="font-medium mb-2">How to invite someone</h3>
+        <div className="mt-8 p-4 bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-sm)]">
+          <h3 className="font-medium text-[var(--color-text-primary)] mb-2">How to invite someone</h3>
           <ol className="text-sm text-[var(--color-text-secondary)] space-y-1 list-decimal list-inside">
             <li>Click "Generate New Invite" to create a code</li>
             <li>Copy the invite code</li>

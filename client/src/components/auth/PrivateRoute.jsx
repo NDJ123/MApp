@@ -5,7 +5,7 @@
 //
 // How it works:
 // 1. Check if user is authenticated (via AuthContext)
-// 2. If loading, show a spinner
+// 2. If loading, show skeleton loading state
 // 3. If authenticated, render the protected content
 // 4. If not authenticated, redirect to login
 //
@@ -16,7 +16,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useClub } from '../../context/ClubContext';
-import Spinner from '../common/Spinner';
+import { ContactSkeleton } from '../ui/Skeleton';
 import NoClubScreen from '../common/NoClubScreen';
 
 function PrivateRoute({ children }) {
@@ -32,14 +32,20 @@ function PrivateRoute({ children }) {
   // ---------------------------------------------------------------------------
   // LOADING STATE
   // ---------------------------------------------------------------------------
-  // While checking authentication or loading clubs, show a loading spinner
+  // While checking authentication or loading clubs, show skeleton loading
   // This prevents a flash of the login page before auth is confirmed
   // ---------------------------------------------------------------------------
 
   if (isLoading || (isAuthenticated && isClubLoading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="large" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <div className="w-full max-w-sm space-y-2 animate-fade-in">
+          <ContactSkeleton />
+          <ContactSkeleton />
+          <ContactSkeleton />
+          <ContactSkeleton />
+          <ContactSkeleton />
+        </div>
       </div>
     );
   }

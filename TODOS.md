@@ -9,6 +9,13 @@
 - **Effort**: M
 - **Depends on**: Decision 1 (SocketProvider wired to ClubContext) is a prerequisite - already done
 
+### Per-club accent colors
+- **What**: Let club admins set their club's primary accent color via ClubAdminDashboard
+- **Why**: Each club should feel like "their" app. The design token architecture (CSS custom properties) already supports overriding `--color-primary` per-club with zero refactoring
+- **Context**: ThemeContext and CSS var system are in place. Need to: (1) add `accentColor` field to Club model, (2) add color picker to ClubAdminDashboard, (3) apply the club's color by setting a CSS var override when club context loads
+- **Effort**: M
+- **Depends on**: UI redesign (done)
+
 ## P3 - Backlog
 
 ### Implement password reset email sending

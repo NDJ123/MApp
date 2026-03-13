@@ -14,30 +14,28 @@ import { useState, useEffect } from 'react';
 import { useClub } from '../../context/ClubContext';
 import { useAuth } from '../../context/AuthContext';
 import { clubAPI } from '../../services/api';
+import { Users, Settings, Lock } from 'lucide-react';
 import Spinner from '../common/Spinner';
+import Avatar from '../ui/Avatar';
+import Badge from '../ui/Badge';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
 
 // =============================================================================
 // MEMBER CARD COMPONENT
 // =============================================================================
 
 function MemberCard({ member, currentUserId, onPromote, onDemote, onRemove, isLoading }) {
-  const initial = (member.displayName || member.username || '?')[0].toUpperCase();
   const isCurrentUser = member._id === currentUserId;
 
   return (
-    <div className="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
+    <div className="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-sm)]">
       {/* Avatar */}
-      <div className="w-12 h-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-lg font-medium flex-shrink-0">
-        {member.avatar ? (
-          <img
-            src={member.avatar}
-            alt={member.displayName}
-            className="w-full h-full rounded-full object-cover"
-          />
-        ) : (
-          initial
-        )}
-      </div>
+      <Avatar
+        src={member.avatar}
+        name={member.displayName || member.username || '?'}
+        size="lg"
+      />
 
       {/* Member info */}
       <div className="flex-1 min-w-0">
@@ -46,9 +44,7 @@ function MemberCard({ member, currentUserId, onPromote, onDemote, onRemove, isLo
             {member.displayName}
           </h3>
           {member.role === 'admin' && (
-            <span className="text-xs px-2 py-0.5 bg-[var(--color-primary)] bg-opacity-20 text-[var(--color-primary)] rounded font-medium">
-              Admin
-            </span>
+            <Badge variant="primary">Admin</Badge>
           )}
           {isCurrentUser && (
             <span className="text-xs text-[var(--color-text-tertiary)]">(you)</span>
@@ -66,32 +62,38 @@ function MemberCard({ member, currentUserId, onPromote, onDemote, onRemove, isLo
       {!isCurrentUser && (
         <div className="flex gap-2">
           {member.role === 'member' ? (
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => onPromote(member._id)}
               disabled={isLoading}
-              className="px-3 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
+              isLoading={isLoading}
               title="Promote to admin"
             >
-              {isLoading ? <Spinner size="small" /> : 'Promote'}
-            </button>
+              Promote
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => onDemote(member._id)}
               disabled={isLoading}
-              className="px-3 py-1.5 text-sm bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] rounded-lg hover:bg-orange-500 hover:text-white disabled:opacity-50 transition-colors"
+              isLoading={isLoading}
               title="Demote to member"
             >
-              {isLoading ? <Spinner size="small" /> : 'Demote'}
-            </button>
+              Demote
+            </Button>
           )}
-          <button
+          <Button
+            variant="danger"
+            size="sm"
             onClick={() => onRemove(member._id)}
             disabled={isLoading}
-            className="px-3 py-1.5 text-sm bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] rounded-lg hover:bg-red-500 hover:text-white disabled:opacity-50 transition-colors"
+            isLoading={isLoading}
             title="Remove from club"
           >
-            {isLoading ? <Spinner size="small" /> : 'Remove'}
-          </button>
+            Remove
+          </Button>
         </div>
       )}
     </div>
@@ -195,18 +197,17 @@ function MembersTab({ clubId, currentUserId }) {
     <div>
       {/* Search */}
       <div className="mb-4">
-        <input
+        <Input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search members..."
-          className="w-full px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
         />
       </div>
 
       {/* Error */}
       {error && (
-        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+        <div className="mb-4 p-3 bg-red-50 [data-theme=dark]:bg-red-900/30 border border-red-200 [data-theme=dark]:border-red-800 rounded-[var(--radius-md)] text-[var(--color-error)] text-sm">
           {error}
         </div>
       )}
@@ -282,37 +283,32 @@ function SettingsTab({ club, onUpdate }) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Success message */}
       {success && (
-        <div className="p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm">
+        <div className="p-3 bg-green-50 [data-theme=dark]:bg-green-900/30 border border-green-200 [data-theme=dark]:border-green-800 rounded-[var(--radius-md)] text-green-700 [data-theme=dark]:text-green-400 text-sm">
           Settings updated successfully!
         </div>
       )}
 
       {/* Error message */}
       {error && (
-        <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+        <div className="p-3 bg-red-50 [data-theme=dark]:bg-red-900/30 border border-red-200 [data-theme=dark]:border-red-800 rounded-[var(--radius-md)] text-[var(--color-error)] text-sm">
           {error}
         </div>
       )}
 
       {/* Club name */}
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium mb-2">
-          Club Name
-        </label>
-        <input
-          type="text"
-          id="name"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          required
-          className="w-full px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-        />
-      </div>
+      <Input
+        label="Club Name"
+        type="text"
+        id="name"
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+        required
+      />
 
       {/* Description */}
       <div>
-        <label htmlFor="description" className="block text-sm font-medium mb-2">
+        <label htmlFor="description" className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
           Description
         </label>
         <textarea
@@ -321,55 +317,40 @@ function SettingsTab({ club, onUpdate }) {
           value={formData.description}
           onChange={handleChange}
           rows={3}
-          className="w-full px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] resize-none"
+          className="w-full px-4 py-2.5 text-sm bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-[var(--radius-md)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow duration-[var(--duration-fast)] resize-none"
         />
       </div>
 
       {/* Contact email */}
-      <div>
-        <label htmlFor="contactEmail" className="block text-sm font-medium mb-2">
-          Contact Email
-        </label>
-        <input
-          type="email"
-          id="contactEmail"
-          name="contactEmail"
-          value={formData.contactEmail}
-          onChange={handleChange}
-          className="w-full px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-        />
-      </div>
+      <Input
+        label="Contact Email"
+        type="email"
+        id="contactEmail"
+        name="contactEmail"
+        value={formData.contactEmail}
+        onChange={handleChange}
+      />
 
       {/* Contact phone */}
-      <div>
-        <label htmlFor="contactPhone" className="block text-sm font-medium mb-2">
-          Contact Phone
-        </label>
-        <input
-          type="tel"
-          id="contactPhone"
-          name="contactPhone"
-          value={formData.contactPhone}
-          onChange={handleChange}
-          className="w-full px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-        />
-      </div>
+      <Input
+        label="Contact Phone"
+        type="tel"
+        id="contactPhone"
+        name="contactPhone"
+        value={formData.contactPhone}
+        onChange={handleChange}
+      />
 
       {/* Submit button */}
-      <button
+      <Button
         type="submit"
+        variant="primary"
+        size="lg"
+        isLoading={isLoading}
         disabled={isLoading}
-        className="px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:bg-[var(--color-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {isLoading ? (
-          <span className="flex items-center gap-2">
-            <Spinner size="small" />
-            Saving...
-          </span>
-        ) : (
-          'Save Changes'
-        )}
-      </button>
+        {isLoading ? 'Saving...' : 'Save Changes'}
+      </Button>
     </form>
   );
 }
@@ -407,9 +388,7 @@ function ClubAdminDashboard() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center p-6">
-          <svg className="w-16 h-16 mx-auto text-[var(--color-text-tertiary)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+          <Lock className="w-16 h-16 mx-auto text-[var(--color-text-tertiary)] mb-4" />
           <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
           <p className="text-[var(--color-text-secondary)]">
             You need to be a club admin to access this page.
@@ -428,8 +407,8 @@ function ClubAdminDashboard() {
   }
 
   const tabs = [
-    { id: 'members', label: 'Members', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-    { id: 'settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+    { id: 'members', label: 'Members', icon: Users },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -437,7 +416,7 @@ function ClubAdminDashboard() {
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Club Administration</h1>
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Club Administration</h1>
           <p className="mt-1 text-[var(--color-text-secondary)]">
             Manage {clubData?.name || activeClub?.name || 'your club'}
           </p>
@@ -445,24 +424,25 @@ function ClubAdminDashboard() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-[var(--color-border)]">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
-                ${activeTab === tab.id
-                  ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
-                  : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-                }
-              `}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
-              </svg>
-              {tab.label}
-            </button>
-          ))}
+          {tabs.map(tab => {
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-[var(--duration-fast)]
+                  ${activeTab === tab.id
+                    ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
+                    : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                  }
+                `}
+              >
+                <TabIcon className="w-5 h-5" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab content */}

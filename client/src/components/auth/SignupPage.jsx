@@ -12,6 +12,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { inviteAPI } from '../../services/api';
+import { Loader2, Check, X } from 'lucide-react';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
 
 function SignupPage() {
   // ---------------------------------------------------------------------------
@@ -155,82 +158,75 @@ function SignupPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-[var(--color-background)]">
+      <div className="w-full max-w-md animate-slide-up">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link to="/" className="text-2xl font-bold text-[var(--color-primary)] tracking-tight">
-            Padel<span className="text-[var(--color-text-primary)]">talk</span>
+          <Link to="/" className="text-2xl font-bold tracking-tight">
+            <span className="text-[var(--color-primary)]">Padel</span>
+            <span className="text-[var(--color-text-primary)]">talk</span>
           </Link>
-          <h1 className="mt-6 text-2xl font-semibold">Create your account</h1>
+          <h1 className="mt-6 text-2xl font-semibold text-[var(--color-text-primary)]">Create your account</h1>
           <p className="mt-2 text-[var(--color-text-secondary)]">
             Enter your invite code to get started
           </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* General error message */}
-          {error && !Object.keys(fieldErrors).length && (
-            <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Invite code field */}
-          <div>
-            <label htmlFor="inviteCode" className="block text-sm font-medium mb-2">
-              Invite Code
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                id="inviteCode"
-                name="inviteCode"
-                value={formData.inviteCode}
-                onChange={handleChange}
-                onBlur={handleInviteBlur}
-                placeholder="XXXX-XXXX"
-                disabled={isLoading}
-                className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
-                  fieldErrors.inviteCode
-                    ? 'border-red-500'
-                    : inviteValid === true
-                    ? 'border-green-500'
-                    : 'border-[var(--color-border)]'
-                }`}
-              />
-              {/* Status indicator */}
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {checkingInvite && (
-                  <svg className="animate-spin h-5 w-5 text-[var(--color-text-tertiary)]" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                )}
-                {!checkingInvite && inviteValid === true && (
-                  <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-                {!checkingInvite && inviteValid === false && (
-                  <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                )}
+        {/* Card */}
+        <div className="bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] p-8">
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* General error message */}
+            {error && !Object.keys(fieldErrors).length && (
+              <div className="p-3 bg-[var(--color-error)]/10 border border-[var(--color-error)]/30 rounded-[var(--radius-md)] text-[var(--color-error)] text-sm animate-fade-in">
+                {error}
               </div>
-            </div>
-            {fieldErrors.inviteCode && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.inviteCode}</p>
             )}
-          </div>
 
-          {/* Username field */}
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium mb-2">
-              Username
-            </label>
-            <input
+            {/* Invite code field */}
+            <div>
+              <label htmlFor="inviteCode" className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                Invite Code
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="inviteCode"
+                  name="inviteCode"
+                  value={formData.inviteCode}
+                  onChange={handleChange}
+                  onBlur={handleInviteBlur}
+                  placeholder="XXXX-XXXX"
+                  disabled={isLoading}
+                  className={`w-full px-4 py-2.5 text-sm bg-[var(--color-surface)] text-[var(--color-text-primary)] border rounded-[var(--radius-md)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow duration-[var(--duration-fast)] disabled:opacity-50 disabled:cursor-not-allowed ${
+                    fieldErrors.inviteCode
+                      ? 'border-[var(--color-error)]'
+                      : inviteValid === true
+                      ? 'border-green-500'
+                      : 'border-[var(--color-border)]'
+                  }`}
+                />
+                {/* Status indicator */}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {checkingInvite && (
+                    <Loader2 className="h-5 w-5 text-[var(--color-text-tertiary)] animate-spin" />
+                  )}
+                  {!checkingInvite && inviteValid === true && (
+                    <Check className="h-5 w-5 text-green-500" />
+                  )}
+                  {!checkingInvite && inviteValid === false && (
+                    <X className="h-5 w-5 text-[var(--color-error)]" />
+                  )}
+                </div>
+              </div>
+              {fieldErrors.inviteCode && (
+                <p className="mt-1 text-xs text-[var(--color-error)]">{fieldErrors.inviteCode}</p>
+              )}
+            </div>
+
+            {/* Username field */}
+            <Input
+              label="Username"
               type="text"
               id="username"
               name="username"
@@ -239,25 +235,13 @@ function SignupPage() {
               placeholder="johndoe"
               autoComplete="username"
               disabled={isLoading}
-              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
-                fieldErrors.username ? 'border-red-500' : 'border-[var(--color-border)]'
-              }`}
+              error={fieldErrors.username}
+              hint={!fieldErrors.username ? '3-30 characters, letters, numbers, and underscores only' : undefined}
             />
-            {fieldErrors.username ? (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.username}</p>
-            ) : (
-              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-                3-30 characters, letters, numbers, and underscores only
-              </p>
-            )}
-          </div>
 
-          {/* Email field */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-2">
-              Email
-            </label>
-            <input
+            {/* Email field */}
+            <Input
+              label="Email"
               type="email"
               id="email"
               name="email"
@@ -266,21 +250,12 @@ function SignupPage() {
               placeholder="you@example.com"
               autoComplete="email"
               disabled={isLoading}
-              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
-                fieldErrors.email ? 'border-red-500' : 'border-[var(--color-border)]'
-              }`}
+              error={fieldErrors.email}
             />
-            {fieldErrors.email && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>
-            )}
-          </div>
 
-          {/* Display name field */}
-          <div>
-            <label htmlFor="displayName" className="block text-sm font-medium mb-2">
-              Display Name
-            </label>
-            <input
+            {/* Display name field */}
+            <Input
+              label="Display Name"
               type="text"
               id="displayName"
               name="displayName"
@@ -289,25 +264,13 @@ function SignupPage() {
               placeholder="John Doe"
               autoComplete="name"
               disabled={isLoading}
-              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
-                fieldErrors.displayName ? 'border-red-500' : 'border-[var(--color-border)]'
-              }`}
+              error={fieldErrors.displayName}
+              hint={!fieldErrors.displayName ? 'This is how others will see you' : undefined}
             />
-            {fieldErrors.displayName ? (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.displayName}</p>
-            ) : (
-              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-                This is how others will see you
-              </p>
-            )}
-          </div>
 
-          {/* Password field */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-2">
-              Password
-            </label>
-            <input
+            {/* Password field */}
+            <Input
+              label="Password"
               type="password"
               id="password"
               name="password"
@@ -316,23 +279,13 @@ function SignupPage() {
               placeholder="••••••••"
               autoComplete="new-password"
               disabled={isLoading}
-              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
-                fieldErrors.password ? 'border-red-500' : 'border-[var(--color-border)]'
-              }`}
+              error={fieldErrors.password}
+              hint={!fieldErrors.password ? 'Minimum 8 characters' : undefined}
             />
-            {fieldErrors.password ? (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
-            ) : (
-              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">Minimum 8 characters</p>
-            )}
-          </div>
 
-          {/* Confirm password field */}
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium mb-2">
-              Confirm Password
-            </label>
-            <input
+            {/* Confirm password field */}
+            <Input
+              label="Confirm Password"
               type="password"
               id="confirmPassword"
               name="confirmPassword"
@@ -341,34 +294,21 @@ function SignupPage() {
               placeholder="••••••••"
               autoComplete="new-password"
               disabled={isLoading}
-              className={`w-full px-4 py-3 bg-[var(--color-surface)] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow disabled:opacity-50 ${
-                fieldErrors.confirmPassword ? 'border-red-500' : 'border-[var(--color-border)]'
-              }`}
+              error={fieldErrors.confirmPassword}
             />
-            {fieldErrors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>
-            )}
-          </div>
 
-          {/* Submit button */}
-          <button
-            type="submit"
-            disabled={isLoading || inviteValid === false}
-            className="w-full py-3 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:bg-[var(--color-primary-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Creating account...
-              </span>
-            ) : (
-              'Create account'
-            )}
-          </button>
-        </form>
+            {/* Submit button */}
+            <Button
+              type="submit"
+              isLoading={isLoading}
+              disabled={inviteValid === false}
+              className="w-full"
+              size="lg"
+            >
+              {isLoading ? 'Creating account...' : 'Create account'}
+            </Button>
+          </form>
+        </div>
 
         {/* Login link */}
         <p className="mt-8 text-center text-[var(--color-text-secondary)]">

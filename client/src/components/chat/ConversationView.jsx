@@ -18,7 +18,29 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { messageAPI, userAPI, groupAPI } from '../../services/api';
 import { useNotifications } from '../../context/NotificationContext';
-import Spinner from '../common/Spinner';
+import { MessageSkeleton } from '../ui/Skeleton';
+import Avatar from '../ui/Avatar';
+import {
+  Pencil,
+  Trash2,
+  Reply,
+  Send,
+  Paperclip,
+  X,
+  Search,
+  FileText,
+  Download,
+  ChevronUp,
+  ChevronDown,
+  MoreVertical,
+  Users,
+  ImageIcon,
+  Smile,
+  BellOff,
+  Bell,
+  Ban,
+  ShieldCheck,
+} from 'lucide-react';
 
 // =============================================================================
 // COMMON EMOJIS FOR REACTIONS
@@ -32,7 +54,7 @@ const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏
 
 function EmojiPicker({ onSelect, onClose }) {
   return (
-    <div className="absolute bottom-full mb-2 left-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg p-2 z-50">
+    <div className="absolute bottom-full mb-2 left-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg p-2 z-50">
       <div className="flex gap-1">
         {REACTION_EMOJIS.map((emoji) => (
           <button
@@ -105,7 +127,7 @@ function LinkPreview({ preview, isOwnMessage }) {
       href={preview.url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`block mt-2 rounded-lg overflow-hidden border ${
+      className={`block mt-2 rounded-[var(--radius-md)] overflow-hidden border ${
         isOwnMessage
           ? 'bg-white/10 border-white/20 hover:bg-white/20'
           : 'bg-[var(--color-surface-hover)] border-[var(--color-border)] hover:bg-[var(--color-surface)]'
@@ -204,7 +226,7 @@ function FileAttachment({ file, isOwnMessage }) {
         <img
           src={file.url}
           alt={file.name}
-          className="max-w-full max-h-64 rounded-lg object-contain"
+          className="max-w-full max-h-64 rounded-[var(--radius-md)] object-contain"
         />
       </a>
     );
@@ -215,18 +237,16 @@ function FileAttachment({ file, isOwnMessage }) {
     <a
       href={file.url}
       download={file.name}
-      className={`flex items-center gap-3 p-3 rounded-lg border ${
+      className={`flex items-center gap-3 p-3 rounded-[var(--radius-md)] border ${
         isOwnMessage
           ? 'bg-white/10 border-white/20 hover:bg-white/20'
           : 'bg-[var(--color-surface-hover)] border-[var(--color-border)] hover:bg-[var(--color-surface)]'
       } transition-colors`}
     >
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+      <div className={`w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center ${
         isOwnMessage ? 'bg-white/20' : 'bg-[var(--color-primary)] bg-opacity-20'
       }`}>
-        <svg className={`w-5 h-5 ${isOwnMessage ? 'text-white' : 'text-[var(--color-primary)]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
+        <FileText className={`w-5 h-5 ${isOwnMessage ? 'text-white' : 'text-[var(--color-primary)]'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate">{file.name}</p>
@@ -234,9 +254,7 @@ function FileAttachment({ file, isOwnMessage }) {
           {formatSize(file.size)}
         </p>
       </div>
-      <svg className={`w-5 h-5 ${isOwnMessage ? 'text-white/70' : 'text-[var(--color-text-tertiary)]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-      </svg>
+      <Download className={`w-5 h-5 ${isOwnMessage ? 'text-white/70' : 'text-[var(--color-text-tertiary)]'}`} />
     </a>
   );
 }
@@ -252,7 +270,6 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
   const [editContent, setEditContent] = useState(message.content || '');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const initial = (message.sender?.displayName || message.sender?.username || '?')[0].toUpperCase();
   const time = new Date(message.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
@@ -304,7 +321,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
     return (
       <div
         ref={messageRef}
-        className={`flex justify-end mb-3 group transition-all duration-300 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/30 -mx-2 px-2 py-1 rounded-lg' : ''}`}
+        className={`flex justify-end mb-3 group transition-all duration-300 ${isHighlighted ? 'bg-yellow-100 [data-theme=dark]:bg-yellow-900/30 -mx-2 px-2 py-1 rounded-[var(--radius-md)]' : ''}`}
         onMouseLeave={() => {
           setShowEmojiPicker(false);
           setShowDeleteConfirm(false);
@@ -321,9 +338,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
                     className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-xs transition-colors"
                     title="Edit message"
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
+                    <Pencil className="w-3 h-3" />
                   </button>
                 )}
                 {canDelete && (
@@ -333,12 +348,10 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
                       className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-red-100 hover:border-red-300 hover:text-red-600 text-xs transition-colors"
                       title="Delete message"
                     >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <Trash2 className="w-3 h-3" />
                     </button>
                     {showDeleteConfirm && (
-                      <div className="absolute right-0 top-full mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg p-2 z-50 whitespace-nowrap">
+                      <div className="absolute right-0 top-full mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg p-2 z-50 whitespace-nowrap">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-2">Delete message?</p>
                         <div className="flex gap-1">
                           <button
@@ -363,7 +376,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                     className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
                   >
-                    😊
+                    <Smile className="w-3 h-3" />
                   </button>
                   {showEmojiPicker && (
                     <EmojiPicker
@@ -377,9 +390,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
                   className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-xs transition-colors"
                   title="Reply"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                  </svg>
+                  <Reply className="w-3 h-3" />
                 </button>
               </div>
             )}
@@ -388,7 +399,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
             )}
             <span className="text-xs text-[var(--color-text-tertiary)]">{time}</span>
           </div>
-          <div className="bg-[var(--color-primary)] text-white rounded-lg px-4 py-2">
+          <div className="bg-[var(--color-primary)] text-white rounded-[var(--radius-md)] px-4 py-2">
             {message.replyTo && (
               <ReplyPreview replyTo={message.replyTo} isOwnMessage={true} />
             )}
@@ -452,21 +463,15 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
   return (
     <div
       ref={messageRef}
-      className={`flex gap-3 mb-3 group transition-all duration-300 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/30 -mx-2 px-2 py-1 rounded-lg' : ''}`}
+      className={`flex gap-3 mb-3 group transition-all duration-300 ${isHighlighted ? 'bg-yellow-100 [data-theme=dark]:bg-yellow-900/30 -mx-2 px-2 py-1 rounded-[var(--radius-md)]' : ''}`}
       onMouseLeave={() => setShowEmojiPicker(false)}
     >
       {showAvatar ? (
-        <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex-shrink-0 flex items-center justify-center text-white text-sm font-medium">
-          {message.sender?.avatar ? (
-            <img
-              src={message.sender.avatar}
-              alt={message.sender.displayName}
-              className="w-full h-full rounded-full object-cover"
-            />
-          ) : (
-            initial
-          )}
-        </div>
+        <Avatar
+          src={message.sender?.avatar}
+          name={message.sender?.displayName || message.sender?.username}
+          size="sm"
+        />
       ) : (
         <div className="w-8 flex-shrink-0" />
       )}
@@ -483,7 +488,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
           </div>
         )}
         <div className="relative">
-          <div className="bg-[var(--color-surface)] rounded-lg px-4 py-2">
+          <div className="bg-[var(--color-surface)] rounded-[var(--radius-md)] px-4 py-2">
             {message.replyTo && (
               <ReplyPreview replyTo={message.replyTo} isOwnMessage={false} />
             )}
@@ -505,7 +510,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-sm transition-colors"
             >
-              😊
+              <Smile className="w-3 h-3" />
             </button>
             {showEmojiPicker && (
               <EmojiPicker
@@ -518,9 +523,7 @@ function MessageBubble({ message, isOwnMessage, showAvatar, currentUserId, onTog
               className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-xs transition-colors"
               title="Reply"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-              </svg>
+              <Reply className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -1203,8 +1206,12 @@ function ConversationView() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <Spinner />
+      <div className="flex-1 flex flex-col h-full">
+        <div className="flex-1 p-4 animate-fade-in">
+          {[...Array(5)].map((_, i) => (
+            <MessageSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -1254,46 +1261,42 @@ function ConversationView() {
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Header */}
-      <div className="h-16 px-4 flex items-center justify-between border-b border-[var(--color-border)] flex-shrink-0">
+      <div className="h-16 px-4 flex items-center justify-between border-b border-[var(--color-border)] flex-shrink-0 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-3">
           {/* Avatar/Icon */}
           {isGroupChat ? (
-            <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)] bg-opacity-20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-primary)] bg-opacity-20 flex items-center justify-center">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
                   alt={displayName}
-                  className="w-full h-full rounded-lg object-cover"
+                  className="w-full h-full rounded-[var(--radius-md)] object-cover"
                 />
               ) : (
-                <svg className="w-5 h-5 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+                <Users className="w-5 h-5 text-[var(--color-primary)]" />
               )}
             </div>
           ) : (
-            <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white font-medium">
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={displayName}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  displayInitial
-                )}
-              </div>
-              {/* Online indicator */}
-              {otherUser && isUserOnline(otherUser._id) && (
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[var(--color-bg)]" />
-              )}
-            </div>
+            <Avatar
+              src={avatarUrl}
+              name={displayName}
+              size="md"
+              isOnline={otherUser && isUserOnline(otherUser._id)}
+            />
           )}
           <div>
             <h2 className="font-semibold">{displayName}</h2>
             <p className="text-xs text-[var(--color-text-tertiary)]">
-              {typingText ? typingText : (
+              {typingText ? (
+                <span className="flex items-center gap-1">
+                  <span>{typingText.replace('...', '')}</span>
+                  <span className="inline-flex gap-0.5">
+                    <span className="w-1 h-1 rounded-full bg-current" style={{ animation: 'bounce 1.4s infinite ease-in-out', animationDelay: '0s' }} />
+                    <span className="w-1 h-1 rounded-full bg-current" style={{ animation: 'bounce 1.4s infinite ease-in-out', animationDelay: '0.2s' }} />
+                    <span className="w-1 h-1 rounded-full bg-current" style={{ animation: 'bounce 1.4s infinite ease-in-out', animationDelay: '0.4s' }} />
+                  </span>
+                </span>
+              ) : (
                 isGroupChat
                   ? `${memberCount} members`
                   : (otherUser && isUserOnline(otherUser._id) ? 'Online' : 'Offline')
@@ -1304,35 +1307,31 @@ function ConversationView() {
         <div className="flex items-center gap-1">
           {/* Muted indicator */}
           {!isGroupChat && isMuted && (
-            <span className="px-2 py-1 text-xs bg-yellow-500 bg-opacity-20 text-yellow-600 dark:text-yellow-400 rounded">
+            <span className="px-2 py-1 text-xs bg-yellow-500 bg-opacity-20 text-yellow-600 [data-theme=dark]:text-yellow-400 rounded">
               Muted
             </span>
           )}
           {/* Search button */}
           <button
             onClick={() => setShowSearch(!showSearch)}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`p-2 rounded-[var(--radius-md)] transition-colors ${
               showSearch
                 ? 'bg-[var(--color-primary)] text-white'
                 : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]'
             }`}
             title="Search messages"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <Search className="w-5 h-5" />
           </button>
           {/* User menu for DMs */}
           {!isGroupChat && otherUser && (
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors"
+                className="p-2 rounded-[var(--radius-md)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors"
                 title="More options"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
+                <MoreVertical className="w-5 h-5" />
               </button>
               {/* Dropdown menu */}
               {showUserMenu && (
@@ -1341,24 +1340,19 @@ function ConversationView() {
                     className="fixed inset-0 z-40"
                     onClick={() => setShowUserMenu(false)}
                   />
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg z-50 py-1">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg z-50 py-1">
                     <button
                       onClick={handleMuteToggle}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)] transition-colors flex items-center gap-2"
                     >
                       {isMuted ? (
                         <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                          </svg>
+                          <Bell className="w-4 h-4" />
                           Unmute
                         </>
                       ) : (
                         <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                          </svg>
+                          <BellOff className="w-4 h-4" />
                           Mute
                         </>
                       )}
@@ -1371,16 +1365,12 @@ function ConversationView() {
                     >
                       {isBlocked ? (
                         <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                          <ShieldCheck className="w-4 h-4" />
                           Unblock
                         </>
                       ) : (
                         <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                          </svg>
+                          <Ban className="w-4 h-4" />
                           Block
                         </>
                       )}
@@ -1402,12 +1392,10 @@ function ConversationView() {
               />
               <button
                 onClick={() => setShowGroupMenu(!showGroupMenu)}
-                className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors"
+                className="p-2 rounded-[var(--radius-md)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors"
                 title="Group settings"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
+                <MoreVertical className="w-5 h-5" />
               </button>
               {/* Dropdown menu */}
               {showGroupMenu && (
@@ -1416,15 +1404,13 @@ function ConversationView() {
                     className="fixed inset-0 z-40"
                     onClick={() => setShowGroupMenu(false)}
                   />
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg z-50 py-1">
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg z-50 py-1">
                     <button
                       onClick={() => groupAvatarInputRef.current?.click()}
                       disabled={isUpdatingGroupAvatar}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)] transition-colors flex items-center gap-2 disabled:opacity-50"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+                      <ImageIcon className="w-4 h-4" />
                       {isUpdatingGroupAvatar ? 'Updating...' : (group.avatar ? 'Change group photo' : 'Add group photo')}
                     </button>
                     {group.avatar && (
@@ -1433,9 +1419,7 @@ function ConversationView() {
                         disabled={isUpdatingGroupAvatar}
                         className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)] transition-colors flex items-center gap-2 text-red-600 disabled:opacity-50"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <Trash2 className="w-4 h-4" />
                         Remove group photo
                       </button>
                     )}
@@ -1458,14 +1442,12 @@ function ConversationView() {
                 value={searchQuery}
                 onChange={handleSearchChange}
                 placeholder="Search in conversation..."
-                className="w-full pl-10 pr-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-md)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
               />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)]" />
               {isSearching && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Spinner size="small" />
+                  <div className="w-4 h-4 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </div>
@@ -1479,18 +1461,14 @@ function ConversationView() {
                   className="p-2 hover:bg-[var(--color-surface-hover)] rounded transition-colors"
                   title="Previous result"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
+                  <ChevronUp className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => navigateSearch('next')}
                   className="p-2 hover:bg-[var(--color-surface-hover)] rounded transition-colors"
                   title="Next result"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -1499,9 +1477,7 @@ function ConversationView() {
               className="p-2 hover:bg-[var(--color-surface-hover)] rounded transition-colors"
               title="Close search"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-4 h-4" />
             </button>
           </div>
           {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
@@ -1554,7 +1530,7 @@ function ConversationView() {
 
       {/* Connection status warning */}
       {!isConnected && (
-        <div className="px-4 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm text-center">
+        <div className="px-4 py-2 bg-yellow-100 [data-theme=dark]:bg-yellow-900/30 text-yellow-700 [data-theme=dark]:text-yellow-400 text-sm text-center">
           Connecting to server...
         </div>
       )}
@@ -1562,7 +1538,7 @@ function ConversationView() {
       {/* Reply preview */}
       {replyingTo && (
         <div className="px-4 pt-3 border-t border-[var(--color-border)]">
-          <div className="flex items-center gap-3 p-3 bg-[var(--color-surface)] rounded-lg border-l-4 border-[var(--color-primary)]">
+          <div className="flex items-center gap-3 p-3 bg-[var(--color-surface)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-primary)]">
             <div className="flex-1 min-w-0">
               <p className="text-xs text-[var(--color-primary)] font-medium">
                 Replying to {replyingTo.sender?.displayName || replyingTo.sender?.username}
@@ -1580,9 +1556,7 @@ function ConversationView() {
               onClick={() => setReplyingTo(null)}
               className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full transition-colors"
             >
-              <svg className="w-5 h-5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5 text-[var(--color-text-tertiary)]" />
             </button>
           </div>
         </div>
@@ -1591,14 +1565,12 @@ function ConversationView() {
       {/* File preview */}
       {selectedFile && (
         <div className="px-4 pt-3 border-t border-[var(--color-border)]">
-          <div className="flex items-center gap-3 p-3 bg-[var(--color-surface)] rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-[var(--color-surface)] rounded-[var(--radius-md)]">
             {filePreview ? (
               <img src={filePreview} alt="Preview" className="w-16 h-16 object-cover rounded" />
             ) : (
               <div className="w-16 h-16 bg-[var(--color-primary)] bg-opacity-20 rounded flex items-center justify-center">
-                <svg className="w-8 h-8 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
+                <FileText className="w-8 h-8 text-[var(--color-primary)]" />
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -1614,22 +1586,18 @@ function ConversationView() {
               onClick={clearSelectedFile}
               className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full transition-colors"
             >
-              <svg className="w-5 h-5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5 text-[var(--color-text-tertiary)]" />
             </button>
           </div>
         </div>
       )}
 
       {/* Message input */}
-      <div className={`p-4 ${selectedFile || replyingTo ? '' : 'border-t border-[var(--color-border)]'} flex-shrink-0`}>
+      <div className={`p-4 ${selectedFile || replyingTo ? '' : 'border-t border-[var(--color-border)]'} flex-shrink-0 shadow-[var(--shadow-sm)]`}>
         {/* Blocked state */}
         {!isGroupChat && isBlocked ? (
-          <div className="flex items-center justify-center gap-2 py-3 px-4 bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 rounded-lg text-red-600 dark:text-red-400">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
+          <div className="flex items-center justify-center gap-2 py-3 px-4 bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 rounded-[var(--radius-md)] text-red-600 [data-theme=dark]:text-red-400">
+            <Ban className="w-5 h-5" />
             <span>You have blocked this user.</span>
             <button
               onClick={handleBlockToggle}
@@ -1652,12 +1620,10 @@ function ConversationView() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={!isConnected || isSending}
-              className="p-3 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface)] rounded-lg transition-colors disabled:opacity-50"
+              className="p-3 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface)] rounded-[var(--radius-md)] transition-colors disabled:opacity-50"
               title="Attach file"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-              </svg>
+              <Paperclip className="w-6 h-6" />
             </button>
             <textarea
               value={newMessage}
@@ -1666,22 +1632,30 @@ function ConversationView() {
               placeholder="Type a message..."
               rows={1}
               disabled={!isConnected || isSending}
-              className="flex-1 px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent disabled:opacity-50"
+              className="flex-1 px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={(!newMessage.trim() && !selectedFile) || !isConnected || isSending}
-              className="px-4 py-3 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-3 bg-[var(--color-primary)] text-white rounded-[var(--radius-md)] hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSending ? (
-                <Spinner size="small" />
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                'Send'
+                <Send className="w-5 h-5" />
               )}
             </button>
           </form>
         )}
       </div>
+
+      {/* Bouncing dots keyframes for typing indicator */}
+      <style>{`
+        @keyframes bounce {
+          0%, 80%, 100% { transform: scale(0); }
+          40% { transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 }

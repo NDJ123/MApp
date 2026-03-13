@@ -14,7 +14,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useContacts } from '../../context/ContactContext';
 import { useSocket } from '../../context/SocketContext';
-import Spinner from '../common/Spinner';
+import Avatar from '../ui/Avatar';
+import { ContactSkeleton } from '../ui/Skeleton';
 
 // =============================================================================
 // CONTACT ITEM COMPONENT
@@ -23,41 +24,27 @@ import Spinner from '../common/Spinner';
 // =============================================================================
 
 function ContactItem({ contact, isActive, isOnline, onClick }) {
-  // Get first letter for avatar
-  const initial = (contact.displayName || contact.username || '?')[0].toUpperCase();
-
   return (
     <button
       onClick={() => onClick(contact)}
       className={`
-        w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left
+        w-full flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-colors text-left
         ${isActive
-          ? 'bg-[var(--color-primary)] bg-opacity-10 text-[var(--color-primary)]'
+          ? 'bg-[var(--color-primary-muted)] text-[var(--color-primary)]'
           : 'hover:bg-[var(--color-surface-hover)]'
         }
       `}
     >
       {/* Avatar with online indicator */}
-      <div className="relative flex-shrink-0">
-        <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-sm font-medium">
-          {contact.avatar ? (
-            <img
-              src={contact.avatar}
-              alt={contact.displayName}
-              className="w-full h-full rounded-full object-cover"
-            />
-          ) : (
-            initial
-          )}
-        </div>
-        {/* Online indicator */}
-        {isOnline && (
-          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[var(--color-bg)]" />
-        )}
-      </div>
+      <Avatar
+        src={contact.avatar}
+        name={contact.displayName || contact.username || '?'}
+        size="sm"
+        isOnline={isOnline}
+      />
 
       {/* Name */}
-      <span className="text-sm truncate">{contact.displayName}</span>
+      <span className="text-sm truncate text-[var(--color-text-primary)]">{contact.displayName}</span>
     </button>
   );
 }
@@ -95,8 +82,10 @@ function ContactList({ activeContactId, onContactSelect }) {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-4">
-        <Spinner size="small" />
+      <div className="px-1 py-2 space-y-1">
+        {[1, 2, 3].map((i) => (
+          <ContactSkeleton key={i} />
+        ))}
       </div>
     );
   }
@@ -105,7 +94,7 @@ function ContactList({ activeContactId, onContactSelect }) {
   if (error) {
     return (
       <div className="px-3 py-4 text-center">
-        <p className="text-xs text-red-500 mb-2">{error}</p>
+        <p className="text-xs text-[var(--color-error)] mb-2">{error}</p>
         <button
           onClick={fetchContacts}
           className="text-xs text-[var(--color-primary)] hover:underline"

@@ -15,12 +15,10 @@
     />
     <!-- Prevent flash of wrong theme -->
     <script>
-      // Check for saved theme preference or system preference
-      const theme = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-      if (theme === 'dark' || (!theme && prefersDark)) {
-        document.documentElement.classList.add('dark');
+      const t = localStorage.getItem('padeltalk-theme');
+      const d = document.documentElement;
+      if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme:dark)').matches)) {
+        d.setAttribute('data-theme', 'dark');
       }
     </script>
   </head>

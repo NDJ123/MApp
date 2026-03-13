@@ -7,8 +7,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Plus, Users } from 'lucide-react';
 import { groupAPI } from '../../services/api';
 import { useClub } from '../../context/ClubContext';
+import Skeleton from '../ui/Skeleton';
 
 function GroupList({ onCreateGroup }) {
   const [groups, setGroups] = useState([]);
@@ -51,12 +53,16 @@ function GroupList({ onCreateGroup }) {
   // Loading state
   if (loading || isClubLoading) {
     return (
-      <div className="px-3 py-2">
-        <div className="animate-pulse space-y-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-10 bg-[var(--color-surface-hover)] rounded-lg" />
-          ))}
-        </div>
+      <div className="px-3 py-2 space-y-2">
+        {[1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-3 px-3 py-2">
+            <Skeleton className="w-8 h-8 rounded-[var(--radius-md)]" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton variant="text" className="w-24 h-3" />
+              <Skeleton variant="text" className="w-16 h-2.5" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -65,7 +71,7 @@ function GroupList({ onCreateGroup }) {
   if (error) {
     return (
       <div className="px-3 py-2 text-center">
-        <p className="text-xs text-red-500">{error}</p>
+        <p className="text-xs text-[var(--color-error)]">{error}</p>
         <button
           onClick={fetchGroups}
           className="mt-1 text-xs text-[var(--color-primary)] hover:underline"
@@ -81,11 +87,9 @@ function GroupList({ onCreateGroup }) {
       {/* Create Group Button */}
       <button
         onClick={onCreateGroup}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-primary)] hover:bg-[var(--color-surface-hover)] rounded-[var(--radius-md)] transition-colors"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
+        <Plus className="w-4 h-4" />
         <span>New Group</span>
       </button>
 
@@ -103,9 +107,9 @@ function GroupList({ onCreateGroup }) {
               key={group._id}
               to={`/chat/group/${group._id}`}
               className={`
-                flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+                flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-colors
                 ${isGroupActive(group._id)
-                  ? 'bg-[var(--color-primary)] bg-opacity-10 text-[var(--color-primary)]'
+                  ? 'bg-[var(--color-primary-muted)] text-[var(--color-primary)]'
                   : 'hover:bg-[var(--color-surface-hover)]'
                 }
               `}
@@ -115,13 +119,11 @@ function GroupList({ onCreateGroup }) {
                 <img
                   src={group.avatar}
                   alt={group.name}
-                  className="w-8 h-8 rounded-lg object-cover"
+                  className="w-8 h-8 rounded-[var(--radius-md)] object-cover"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)] bg-opacity-20 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                <div className="w-8 h-8 rounded-[var(--radius-md)] bg-[var(--color-primary)]/20 flex items-center justify-center">
+                  <Users className="w-4 h-4 text-[var(--color-primary)]" />
                 </div>
               )}
 
