@@ -78,10 +78,10 @@ router.put('/:clubId', clubContext, requireClubAdmin, updateClub);
 router.delete('/:clubId', clubContext, requireSuperadmin, deleteClub);
 
 // Switch active club (user must be a member)
-router.put('/:clubId/switch', switchClub);
+router.put('/:clubId/switch', clubContext, switchClub);
 
 // Update own membership status (active/inactive)
-router.put('/:clubId/membership', updateMembership);
+router.put('/:clubId/membership', clubContext, updateMembership);
 
 // =============================================================================
 // MEMBER MANAGEMENT ROUTES

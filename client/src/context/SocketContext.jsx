@@ -13,6 +13,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { useClub } from './ClubContext';
 import { SOCKET_URL } from '../config';
 
 // Create the context
@@ -24,6 +25,7 @@ const SocketContext = createContext(null);
 
 export function SocketProvider({ children }) {
   const { user } = useAuth();
+  const { activeClubId } = useClub();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
@@ -35,34 +37,10 @@ export function SocketProvider({ children }) {
   // CONNECT SOCKET
   // ---------------------------------------------------------------------------
 
-  // Track current club ID to detect changes
-  const [currentClubId, setCurrentClubId] = useState(localStorage.getItem('activeClubId'));
-
-  // Listen for club changes via storage event or polling
   useEffect(() => {
-    const checkClubId = () => {
-      const clubId = localStorage.getItem('activeClubId');
-      if (clubId !== currentClubId) {
-        setCurrentClubId(clubId);
-      }
-    };
-
-    // Check periodically for club changes (in case changed in same tab)
-    const interval = setInterval(checkClubId, 1000);
-
-    // Also listen for storage events (changes from other tabs)
-    window.addEventListener('storage', checkClubId);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', checkClubId);
-    };
-  }, [currentClubId]);
-
-  useEffect(() => {
-    // Get token and clubId directly from localStorage
+    // Get token from localStorage, clubId from ClubContext
     const token = localStorage.getItem('token');
-    const clubId = localStorage.getItem('activeClubId');
+    const clubId = activeClubId;
 
     // Only connect if we have a user, token, and club
     if (!user || !token || !clubId) {
@@ -123,7 +101,7 @@ export function SocketProvider({ children }) {
       intentionalDisconnect.current = true;
       newSocket.disconnect();
     };
-  }, [user, currentClubId]); // Reconnect when club changes
+  }, [user, activeClubId]); // Reconnect when club changes
 
   // ---------------------------------------------------------------------------
   // SEND MESSAGE

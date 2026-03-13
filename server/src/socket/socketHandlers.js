@@ -269,18 +269,18 @@ export const setupSocketHandlers = (io) => {
       try {
         const conversationId = Message.getDMConversationId(user._id, userId, clubId);
 
-        // Find unread messages from the other user in this club
-        const unreadMessages = await Message.find({
-          club: clubId,
-          conversationId,
-          sender: userId,
-          'readBy.user': { $ne: user._id },
-        });
-
-        // Mark as read
-        for (const message of unreadMessages) {
-          await message.markAsRead(user._id);
-        }
+        // Batch mark all unread messages as read in a single DB operation
+        await Message.updateMany(
+          {
+            club: clubId,
+            conversationId,
+            sender: userId,
+            'readBy.user': { $ne: user._id },
+          },
+          {
+            $push: { readBy: { user: user._id, readAt: new Date() } },
+          }
+        );
 
         // Notify the other user that their messages were read (club-scoped)
         io.to(`${clubId}:${userId}`).emit('messages:read', {
@@ -491,7 +491,7 @@ export const setupSocketHandlers = (io) => {
         }
 
         // Verify message belongs to current club
-        if (message.club.toString() !== clubId.toString()) {
+        if (!message.club || message.club.toString() !== clubId.toString()) {
           return callback?.({ error: 'Message not found' });
         }
 
@@ -559,7 +559,7 @@ export const setupSocketHandlers = (io) => {
         }
 
         // Verify message belongs to current club
-        if (message.club.toString() !== clubId.toString()) {
+        if (!message.club || message.club.toString() !== clubId.toString()) {
           return callback?.({ error: 'Message not found' });
         }
 
@@ -620,7 +620,7 @@ export const setupSocketHandlers = (io) => {
         }
 
         // Verify message belongs to current club
-        if (message.club.toString() !== clubId.toString()) {
+        if (!message.club || message.club.toString() !== clubId.toString()) {
           return callback?.({ error: 'Message not found' });
         }
 

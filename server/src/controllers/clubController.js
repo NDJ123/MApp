@@ -311,20 +311,9 @@ export const deleteClub = async (req, res, next) => {
 
 export const switchClub = async (req, res, next) => {
   try {
-    const { clubId } = req.params;
+    // clubContext middleware already validated: club exists, is active, user is a member
+    const clubId = req.clubId;
     const user = req.user;
-
-    // Verify user is a member of this club
-    const membership = user.clubMemberships?.find(
-      (m) => m.club.toString() === clubId && m.isActive
-    );
-
-    if (!membership && !user.isSuperadmin) {
-      return res.status(403).json({
-        status: 'error',
-        message: 'You are not an active member of this club',
-      });
-    }
 
     // Update user's active club
     user.activeClub = clubId;
