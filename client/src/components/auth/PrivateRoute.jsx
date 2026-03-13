@@ -15,11 +15,16 @@
 
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useClub } from '../../context/ClubContext';
 import Spinner from '../common/Spinner';
+import NoClubScreen from '../common/NoClubScreen';
 
 function PrivateRoute({ children }) {
   // Get auth state from context
   const { isAuthenticated, isLoading } = useAuth();
+
+  // Get club state from context
+  const { clubs, hasClub, isLoading: isClubLoading } = useClub();
 
   // Get current location (for redirect after login)
   const location = useLocation();
@@ -27,11 +32,11 @@ function PrivateRoute({ children }) {
   // ---------------------------------------------------------------------------
   // LOADING STATE
   // ---------------------------------------------------------------------------
-  // While checking authentication status, show a loading spinner
+  // While checking authentication or loading clubs, show a loading spinner
   // This prevents a flash of the login page before auth is confirmed
   // ---------------------------------------------------------------------------
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && isClubLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Spinner size="large" />
@@ -52,7 +57,17 @@ function PrivateRoute({ children }) {
   }
 
   // ---------------------------------------------------------------------------
-  // AUTHENTICATED
+  // NO CLUB MEMBERSHIP
+  // ---------------------------------------------------------------------------
+  // If the user is authenticated but has no clubs, show an explanation screen
+  // ---------------------------------------------------------------------------
+
+  if (!isClubLoading && clubs.length === 0 && !hasClub) {
+    return <NoClubScreen />;
+  }
+
+  // ---------------------------------------------------------------------------
+  // AUTHENTICATED WITH CLUB
   // ---------------------------------------------------------------------------
   // Render the protected content
   // ---------------------------------------------------------------------------

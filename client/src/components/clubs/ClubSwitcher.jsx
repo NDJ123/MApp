@@ -12,6 +12,8 @@ import { useNavigate } from 'react-router-dom';
 export default function ClubSwitcher() {
   const { activeClub, clubs, switchClub, isLoading } = useClub();
   const [isOpen, setIsOpen] = useState(false);
+  const [switchError, setSwitchError] = useState(null);
+  const [isSwitching, setIsSwitching] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
@@ -29,18 +31,29 @@ export default function ClubSwitcher() {
 
   // Handle club switch
   const handleSwitchClub = async (clubId) => {
-    if (clubId === activeClub?._id) {
+    if (clubId === activeClub?._id || isSwitching) {
       setIsOpen(false);
       return;
     }
 
-    const result = await switchClub(clubId);
-    if (result.success) {
-      setIsOpen(false);
-      // Navigate to chat home to refresh context
-      navigate('/chat');
-      // Force page reload to refresh all club-scoped data
-      window.location.reload();
+    setIsSwitching(true);
+    setSwitchError(null);
+
+    try {
+      const result = await switchClub(clubId);
+      if (result.success) {
+        setIsOpen(false);
+        // Navigate to chat home to refresh context
+        navigate('/chat');
+        // Force page reload to refresh all club-scoped data
+        window.location.reload();
+      } else {
+        setSwitchError(result.error || 'Failed to switch club');
+      }
+    } catch (err) {
+      setSwitchError('Failed to switch club');
+    } finally {
+      setIsSwitching(false);
     }
   };
 
@@ -101,6 +114,10 @@ export default function ClubSwitcher() {
           />
         </svg>
       </button>
+
+      {switchError && (
+        <div className="club-switch-error">{switchError}</div>
+      )}
 
       {isOpen && clubs.length > 1 && (
         <div className="club-dropdown" role="listbox">
@@ -256,6 +273,16 @@ export default function ClubSwitcher() {
         .check-icon {
           color: var(--primary-color, #4a90d9);
           flex-shrink: 0;
+        }
+
+        .club-switch-error {
+          padding: 6px 12px;
+          margin-top: 4px;
+          background: #fef2f2;
+          color: #dc2626;
+          font-size: 12px;
+          border-radius: 6px;
+          border: 1px solid #fecaca;
         }
 
         .club-switcher.loading .club-switcher-button,
