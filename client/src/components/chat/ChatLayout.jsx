@@ -28,10 +28,10 @@ import { useTheme } from '../../context/ThemeContext';
 import {
   X,
   Menu,
-  Users,
-  Ticket,
-  Shield,
-  Star,
+  BookUser,
+  UserRoundPlus,
+  SlidersHorizontal,
+  Crown,
   Settings,
   LogOut,
   MessageCircle,
@@ -146,7 +146,7 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
             }
           `}
         >
-          <Users className="w-5 h-5" />
+          <BookUser className="w-5 h-5" />
           <span className="text-sm font-medium">User Directory</span>
         </Link>
 
@@ -161,7 +161,7 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
             }
           `}
         >
-          <Ticket className="w-5 h-5" />
+          <UserRoundPlus className="w-5 h-5" />
           <span className="text-sm font-medium">Invite Users</span>
         </Link>
 
@@ -178,7 +178,7 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
               }
             `}
           >
-            <Shield className="w-5 h-5" />
+            <SlidersHorizontal className="w-5 h-5" />
             <span className="text-sm font-medium">Club Admin</span>
           </Link>
         )}
@@ -196,7 +196,7 @@ function Sidebar({ onCreateGroup, onNavigate, onCloseMobile }) {
               }
             `}
           >
-            <Star className="w-5 h-5" />
+            <Crown className="w-5 h-5" />
             <span className="text-sm font-medium">Superadmin</span>
           </Link>
         )}
