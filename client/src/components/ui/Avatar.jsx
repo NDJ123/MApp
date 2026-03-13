@@ -17,7 +17,10 @@ export default function Avatar({
   const initial = (name || '?')[0].toUpperCase();
   const sizeClass = sizes[size] || sizes.md;
 
-  const avatarContent = src ? (
+  // Ignore ui-avatars.com URLs — use our own gradient instead
+  const hasRealImage = src && !src.includes('ui-avatars.com');
+
+  const avatarContent = hasRealImage ? (
     <img
       src={src}
       alt={name}
@@ -35,7 +38,7 @@ export default function Avatar({
       : 'w-2.5 h-2.5 border-2';
 
   // Orange-to-amber gradient for initials avatars
-  const bgClass = src
+  const bgClass = hasRealImage
     ? 'bg-[var(--color-surface-hover)]'
     : 'bg-gradient-to-br from-[#F97316] to-[#F59E0B]';
 

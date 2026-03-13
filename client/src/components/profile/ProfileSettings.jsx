@@ -123,7 +123,7 @@ function ProfileSettings() {
   // Generate initials avatar URL
   const generateInitialsAvatar = () => {
     const name = formData.displayName || user?.username || 'User';
-    const url = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff&size=200`;
+    const url = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=F97316&color=fff&size=200`;
     setFormData(prev => ({ ...prev, avatar: url }));
     setAvatarPreview(url);
   };

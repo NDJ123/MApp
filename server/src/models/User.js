@@ -78,7 +78,7 @@ const userSchema = new mongoose.Schema(
       default: function () {
         // 'this' refers to the document being created
         const name = this.displayName || this.username || 'User';
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff`;
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=F97316&color=fff`;
       },
     },
 
